@@ -1,0 +1,19 @@
+<main class="dashboard">
+  <header class="dashboard__header">
+    <h1 class="dashboard__title">{{ title }}</h1>
+    <p class="dashboard__subtitle">{{ subtitle }}</p>
+    <p class="dashboard__phase" role="note">
+      P0 scaffold only — placeholder shell. No data, transports, or features are wired up yet.
+    </p>
+  </header>
+
+  <section class="dashboard__sections" aria-label="Planned feature regions">
+    @for (section of sections; track section.id) {
+      <article class="placeholder-card" [attr.data-section]="section.id">
+        <h2 class="placeholder-card__title">{{ section.title }}</h2>
+        <p class="placeholder-card__note">{{ section.note }}</p>
+        <p class="placeholder-card__status">Placeholder — not implemented in P0</p>
+      </article>
+    }
+  </section>
+</main>
