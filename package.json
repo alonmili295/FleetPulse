@@ -1,0 +1,12 @@
+{
+  "name": "fleetpulse",
+  "private": true,
+  "scripts": {
+    "server:install": "npm --prefix mock-server install",
+    "server": "npm --prefix mock-server start",
+    "dev": "concurrently \"npm run server\" \"npm start\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
