@@ -144,3 +144,15 @@
   color: #5e6c84;
   font-size: 13px;
 }
+
+/* ── P4: anomaly indicators ────────────────────────────────────────────────── */
+
+.fleet-item__speed--error {
+  color: #bf2600;
+  font-style: italic;
+}
+
+.fleet-item__fuel--glitch {
+  color: #974f0c;
+  font-style: italic;
+}

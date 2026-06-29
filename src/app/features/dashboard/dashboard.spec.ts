@@ -101,6 +101,10 @@ describe('DashboardComponent', () => {
       engineTemp: 90,
       status: 'active',
       timestamp: 2000,
+      displaySpeed: 88,
+      displayFuel: 42,
+      speedSensorError: false,
+      fuelGlitch: false,
     });
 
     const fixture = TestBed.createComponent(DashboardComponent);
@@ -112,6 +116,48 @@ describe('DashboardComponent', () => {
     expect(el.textContent).toContain('42%');
     expect(el.textContent).not.toContain('60 km/h');
     expect(el.textContent).not.toContain('75%');
+  });
+
+  it('shows — km/h when speedSensorError is true and does not display 999', async () => {
+    truckList.set([mockTruck]);
+    const telemetryMock = TestBed.inject(TelemetryStore) as unknown as { latestFor: ReturnType<typeof vi.fn> };
+    telemetryMock.latestFor.mockReturnValue({
+      truckId: 'truck_1',
+      location: { lat: 51.5, lng: -0.1 },
+      speed: 999, displaySpeed: null, speedSensorError: true,
+      heading: 90,
+      fuel: 75, displayFuel: 75, fuelGlitch: false,
+      engineTemp: 85, status: 'active', timestamp: 2000,
+    });
+
+    const fixture = TestBed.createComponent(DashboardComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('— km/h');
+    expect(el.textContent).not.toContain('999');
+  });
+
+  it('shows carried-forward fuel when fuelGlitch is true and does not display 0%', async () => {
+    truckList.set([mockTruck]);
+    const telemetryMock = TestBed.inject(TelemetryStore) as unknown as { latestFor: ReturnType<typeof vi.fn> };
+    telemetryMock.latestFor.mockReturnValue({
+      truckId: 'truck_1',
+      location: { lat: 51.5, lng: -0.1 },
+      speed: 60, displaySpeed: 60, speedSensorError: false,
+      heading: 90,
+      fuel: 0, displayFuel: 75, fuelGlitch: true,
+      engineTemp: 85, status: 'active', timestamp: 2000,
+    });
+
+    const fixture = TestBed.createComponent(DashboardComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('75%');
+    expect(el.textContent).not.toContain('0%');
   });
 
   it('calls pipeline.start() on construction', async () => {

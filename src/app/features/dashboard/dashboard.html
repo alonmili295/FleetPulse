@@ -21,8 +21,12 @@
           <span class="fleet-item__name">{{ truck.name }}</span>
           <span class="fleet-item__status fleet-item__status--{{ truck.status }}">{{ truck.status }}</span>
           @if (telemetryStore.latestFor(truck.id); as reading) {
-            <span class="fleet-item__speed">{{ reading.speed | number:'1.0-1' }} km/h</span>
-            <span class="fleet-item__fuel">{{ reading.fuel | number:'1.0-0' }}%</span>
+            <span class="fleet-item__speed" [class.fleet-item__speed--error]="reading.speedSensorError">
+              {{ (reading.displaySpeed | number:'1.0-1') ?? '—' }} km/h
+            </span>
+            <span class="fleet-item__fuel" [class.fleet-item__fuel--glitch]="reading.fuelGlitch">
+              {{ (reading.displayFuel | number:'1.0-0') ?? '—' }}%
+            </span>
             <span class="fleet-item__location">{{ reading.location.lat | number:'1.4-4' }}, {{ reading.location.lng | number:'1.4-4' }}</span>
           } @else {
             <span class="fleet-item__speed">{{ truck.speed | number:'1.0-1' }} km/h</span>
