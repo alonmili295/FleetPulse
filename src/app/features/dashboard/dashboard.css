@@ -62,3 +62,85 @@
   margin: 0;
   font-style: italic;
 }
+
+/* ── P3: connection banner ─────────────────────────────────────────────────── */
+
+.banner {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.banner--degraded {
+  background: #fffae6;
+  border-left: 4px solid #ff8b00;
+  color: #172b4d;
+}
+
+.banner--connected {
+  background: #e3fcef;
+  border-left: 4px solid #00875a;
+  color: #172b4d;
+}
+
+/* ── P3: fleet overview ────────────────────────────────────────────────────── */
+
+.fleet-overview {
+  margin-top: 24px;
+}
+
+.fleet-overview__title {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+.fleet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fleet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #dfe1e6;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.fleet-item--empty {
+  color: #97a0af;
+  font-style: italic;
+}
+
+.fleet-item__name {
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.fleet-item__status {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #dfe1e6;
+  color: #172b4d;
+}
+
+.fleet-item__status--active  { background: #e3fcef; color: #006644; }
+.fleet-item__status--idle    { background: #fffae6; color: #974f0c; }
+.fleet-item__status--maintenance { background: #ffebe6; color: #bf2600; }
+
+.fleet-item__speed,
+.fleet-item__fuel,
+.fleet-item__location {
+  color: #5e6c84;
+  font-size: 13px;
+}
