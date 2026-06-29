@@ -145,6 +145,12 @@
   font-size: 13px;
 }
 
+/* ── P5: fleet map section ─────────────────────────────────────────────────── */
+
+.fleet-map-section {
+  margin-top: 24px;
+}
+
 /* ── P4: anomaly indicators ────────────────────────────────────────────────── */
 
 .fleet-item__speed--error {
