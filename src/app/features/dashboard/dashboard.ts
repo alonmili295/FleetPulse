@@ -4,11 +4,12 @@ import { FleetStore } from '../../domain/fleet/fleet.store';
 import { ConnectionStore } from '../../domain/fleet/connection.store';
 import { TelemetryStore } from '../../domain/telemetry/telemetry.store';
 import { TelemetryPipeline } from '../../domain/telemetry/telemetry-pipeline';
+import { FleetMapComponent } from '../fleet-map/fleet-map';
 
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, FleetMapComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })

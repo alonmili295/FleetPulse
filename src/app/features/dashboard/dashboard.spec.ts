@@ -2,6 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { DashboardComponent } from './dashboard';
+
+// Prevent FleetMapComponent from initialising a real Leaflet map in dashboard tests.
+vi.mock('leaflet', () => ({
+  map: vi.fn().mockReturnValue({ setView: vi.fn().mockReturnThis(), remove: vi.fn() }),
+  tileLayer: vi.fn().mockReturnValue({ addTo: vi.fn() }),
+  circleMarker: vi.fn().mockReturnValue({ addTo: vi.fn().mockReturnThis(), setLatLng: vi.fn().mockReturnThis(), bindPopup: vi.fn().mockReturnThis(), remove: vi.fn() }),
+  polyline: vi.fn().mockReturnValue({ addTo: vi.fn().mockReturnThis(), setLatLngs: vi.fn().mockReturnThis(), remove: vi.fn() }),
+}));
 import { FleetStore } from '../../domain/fleet/fleet.store';
 import { ConnectionStore } from '../../domain/fleet/connection.store';
 import { TelemetryStore } from '../../domain/telemetry/telemetry.store';
@@ -164,5 +172,11 @@ describe('DashboardComponent', () => {
     const pipelineMock = TestBed.inject(TelemetryPipeline) as unknown as { start: ReturnType<typeof vi.fn> };
     TestBed.createComponent(DashboardComponent);
     expect(pipelineMock.start).toHaveBeenCalled();
+  });
+
+  it('renders the fleet map component', async () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-fleet-map')).not.toBeNull();
   });
 });
