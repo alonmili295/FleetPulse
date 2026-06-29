@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Senior Interview Task #4: FleetPulse — Real-Time Fleet Management Dashboard</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 20px; color: #172B4D; }
+        h1 { color: #172B4D; border-bottom: 2px solid #0052CC; padding-bottom: 10px; font-size: 24px; }
+        h2 { color: #172B4D; border-bottom: 1px solid #DFE1E6; padding-bottom: 8px; font-size: 20px; margin-top: 30px; }
+        h3 { color: #172B4D; font-size: 16px; margin-top: 20px; }
+        .info-panel { background: #DEEBFF; border-left: 4px solid #0052CC; padding: 16px; margin: 16px 0; border-radius: 3px; }
+        .warning-panel { background: #FFFAE6; border-left: 4px solid #FF8B00; padding: 16px; margin: 16px 0; border-radius: 3px; }
+        .success-panel { background: #E3FCEF; border-left: 4px solid #00875A; padding: 16px; margin: 16px 0; border-radius: 3px; }
+        .error-panel { background: #FFEBE6; border-left: 4px solid #DE350B; padding: 16px; margin: 16px 0; border-radius: 3px; }
+        code { background: #F4F5F7; padding: 2px 6px; border-radius: 3px; font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 0.9em; }
+        pre { background: #263238; color: #EEFFFF; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.5; }
+        pre code { background: none; color: inherit; padding: 0; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        th { background: #F4F5F7; text-align: left; padding: 10px 12px; border: 1px solid #DFE1E6; font-weight: 600; }
+        td { padding: 10px 12px; border: 1px solid #DFE1E6; }
+        .label { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.85em; font-weight: 600; }
+        .label-blue { background: #DEEBFF; color: #0052CC; }
+        .label-green { background: #E3FCEF; color: #006644; }
+        .label-yellow { background: #FFF0B3; color: #172B4D; }
+        .label-red { background: #FFEBE6; color: #BF2600; }
+        .label-purple { background: #EAE6FF; color: #403294; }
+        .label-teal { background: #E6FCFF; color: #008DA6; }
+        .story-box { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 24px; border-radius: 8px; margin: 20px 0; }
+        .story-box h3 { color: #00d2ff; margin-top: 0; }
+        .story-box code { background: rgba(255,255,255,0.15); color: #00d2ff; }
+        hr { border: none; border-top: 1px solid #DFE1E6; margin: 24px 0; }
+        details { margin: 12px 0; }
+        summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+        summary:hover { color: #0052CC; }
+    </style>
+</head>
+<body>
+
+<h1>🚛 Senior Interview Task #4: FleetPulse — Real-Time Fleet Management Dashboard</h1>
+
+<table>
+    <tr><th>Property</th><th>Value</th></tr>
+    <tr><td>Level</td><td><span class="label label-red">Senior Frontend Developer (3+ years)</span></td></tr>
+    <tr><td>Core Topics</td><td>
+        <span class="label label-blue">Event-Driven Architecture</span>
+        <span class="label label-blue">Circuit Breaker Pattern</span>
+        <span class="label label-blue">Race Conditions</span>
+        <span class="label label-purple">Plugin/Widget Architecture</span>
+        <span class="label label-teal">Performance &amp; Observability</span>
+        <span class="label label-green">Unit &amp; Integration Tests</span>
+    </td></tr>
+    <tr><td>Allowed Tools</td><td>Any AI assistant, documentation, libraries — all tools allowed. <strong>You must document AI usage in PROMPTS.md.</strong></td></tr>
+    <tr><td>Time Limit</td><td>Half day to one full day (4–8 hours effective coding)</td></tr>
+    <tr><td>Stack</td><td>JavaScript/TypeScript with React, Angular, or Vanilla JS (candidate's choice)</td></tr>
+</table>
+
+<div class="story-box">
+    <h3>🚚 User Story</h3>
+    <p><strong>"FleetPulse"</strong> is a logistics startup that manages a fleet of 12 delivery trucks across the city. Last week, two trucks were sent to the same address, one driver ran out of fuel because the dashboard showed 80% when it was actually 15%, and a dispatcher reassigned a route that another dispatcher had already changed — nobody knew who did what.</p>
+    <p>The CTO cornered you at the coffee machine: <em>"Our fleet dashboard is a mess. The GPS tracker sends location updates every 2 seconds but sometimes batches 30 readings at once when signal recovers. Route assignments conflict because two dispatchers can grab the same job. The fuel sensor has a known bug where it reports 0% for a few seconds during hard braking. And last Tuesday the whole thing froze because truck #7's speed sensor got stuck sending 999 km/h on repeat."</em></p>
+    <p><strong>Your mission:</strong> Build a real-time fleet dashboard that dispatchers can actually trust. Live map updates, route assignment with conflict prevention, vehicle health monitoring, and the ability for dispatchers to see who's doing what in real time.</p>
+</div>
+
+<h2>📋 Task Description</h2>
+
+<p>Build a <strong>real-time fleet management dashboard</strong> that connects to the provided mock server. The dashboard receives live vehicle telemetry via SSE, manages route assignments via REST + WebSocket, and handles multiple concurrent dispatchers viewing and modifying the same fleet state.</p>
+
+<p>This task is designed for a <strong>senior developer</strong>. Beyond making things work, we expect to see evidence of:</p>
+<ul>
+    <li>Architectural thinking — how you organize code for extensibility and maintainability</li>
+    <li>Performance awareness — how you handle high-frequency GPS streams across 12 vehicles</li>
+    <li>Concurrency patterns — optimistic locking, conflict resolution, multi-user awareness</li>
+    <li>Resilience — circuit breakers, retry logic, graceful degradation for unreliable sensors</li>
+    <li>Security &amp; quality awareness — input validation, confirmation on critical actions, error boundaries</li>
+</ul>
+
+<h2>🔧 Mock Server Setup</h2>
+
+<div class="info-panel">
+    <strong>The mock server is provided as a single file.</strong> Run <code>npm install express ws</code>, then <code>node server.js</code>. It runs HTTP on port <code>3000</code> and WebSocket on the same port at <code>/ws</code>.
+</div>
+
+<div class="warning-panel">
+    <strong>⚠️ Do NOT modify the mock server.</strong> It simulates real-world fleet tracking quirks. Your frontend must handle all its behaviors.
+</div>
+
+<details>
+<summary><strong>Click to expand: Mock Server Code (server.js) — ~400 lines</strong></summary>
+<pre><code>const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
+const crypto = require('crypto');
+
+const app = express();
+app.use(express.json());
+
+// CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, X-Dispatcher-Id, If-Match');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server, path: '/ws' });
+
+// ============ FLEET STATE ============
+const CITY_CENTER = { lat: 32.0853, lng: 34.7818 }; // Tel Aviv
+const TRUCK_NAMES = ['Truck Alpha', 'Truck Bravo', 'Truck Charlie', 'Truck Delta',
+  'Truck Echo', 'Truck Foxtrot', 'Truck Golf', 'Truck Hotel',
+  'Truck India', 'Truck Juliet', 'Truck Kilo', 'Truck Lima'];
+
+let trucks = {};
+let routes = {};
+let dispatchers = {};
+let sseClients = new Set();
+let nextRouteId = 1;
+
+function initFleet() {
+  TRUCK_NAMES.forEach((name, i) => {
+    const id = `truck_${i + 1}`;
+    const angle = (2 * Math.PI * i) / TRUCK_NAMES.length;
+    const radius = 0.02 + Math.random() * 0.03;
+    trucks[id] = {
+      id,
+      name,
+      status: ['active', 'active', 'active', 'idle', 'active', 'active',
+               'maintenance', 'active', 'active', 'idle', 'active', 'active'][i],
+      location: {
+        lat: CITY_CENTER.lat + Math.cos(angle) * radius,
+        lng: CITY_CENTER.lng + Math.sin(angle) * radius
+      },
+      speed: 0,
+      heading: Math.random() * 360,
+      fuel: 40 + Math.random() * 55,
+      engineTemp: 75 + Math.random() * 15,
+      mileage: 10000 + Math.floor(Math.random() * 90000),
+      lastUpdate: Date.now(),
+      currentRouteId: null,
+      _version: 1   // optimistic locking
+    };
+  });
+}
+initFleet();
+
+// ============ QUIRKS (INTENTIONAL) ============
+// QUIRK 1: GPS batch — when a truck regains signal, sends 10-30 buffered locations at once
+// QUIRK 2: Fuel sensor reads 0% for 2-4 seconds during hard braking events
+// QUIRK 3: Speed sensor stuck — truck_7 periodically reports 999 km/h for 5-10 seconds
+// QUIRK 4: Route assignment conflict — 409 if version mismatch (optimistic locking)
+// QUIRK 5: SSE telemetry sometimes arrives out of order (older GPS fix sent after newer one)
+// QUIRK 6: WebSocket dispatcher presence has 20% chance of "ghost" — shows dispatcher as online for 10s after disconnect
+// QUIRK 7: GET /api/fleet returns 503 under "load" (15% chance) with Retry-After header
+// QUIRK 8: Route status update can race with reassignment — PATCH returns 409 if route was reassigned mid-update
+
+function simulateTrucks() {
+  Object.values(trucks).forEach(truck => {
+    if (truck.status === 'maintenance') return;
+    if (truck.status === 'idle') {
+      truck.speed = 0;
+      truck.engineTemp = Math.max(20, truck.engineTemp - 0.5);
+      return;
+    }
+
+    // Normal movement
+    const headingRad = (truck.heading + (Math.random() - 0.5) * 30) * Math.PI / 180;
+    truck.heading = (truck.heading + (Math.random() - 0.5) * 30 + 360) % 360;
+    truck.speed = Math.max(0, Math.min(80, truck.speed + (Math.random() - 0.3) * 10));
+
+    const moveScale = 0.00005 * (truck.speed / 40);
+    truck.location.lat += Math.cos(headingRad) * moveScale;
+    truck.location.lng += Math.sin(headingRad) * moveScale;
+
+    // Keep trucks near city center
+    const distFromCenter = Math.sqrt(
+      Math.pow(truck.location.lat - CITY_CENTER.lat, 2) +
+      Math.pow(truck.location.lng - CITY_CENTER.lng, 2)
+    );
+    if (distFromCenter > 0.05) {
+      truck.heading = (Math.atan2(
+        CITY_CENTER.lng - truck.location.lng,
+        CITY_CENTER.lat - truck.location.lat
+      ) * 180 / Math.PI + 360) % 360;
+    }
+
+    truck.fuel = Math.max(5, truck.fuel - 0.01 - (truck.speed / 8000));
+    truck.engineTemp = 75 + truck.speed * 0.3 + (Math.random() - 0.5) * 5;
+    truck.lastUpdate = Date.now();
+    truck._version++;
+  });
+}
+
+// QUIRK 3: Speed sensor stuck on truck_7
+let truck7SensorStuck = false;
+setInterval(() => {
+  if (!truck7SensorStuck &amp;&amp; Math.random() < 0.08) {
+    truck7SensorStuck = true;
+    setTimeout(() => { truck7SensorStuck = false; }, 5000 + Math.random() * 5000);
+  }
+}, 3000);
+
+// QUIRK 2: Fuel sensor glitch during braking
+let fuelGlitchTrucks = new Set();
+setInterval(() => {
+  Object.values(trucks).forEach(truck => {
+    if (truck.status !== 'active') return;
+    if (!fuelGlitchTrucks.has(truck.id) &amp;&amp; truck.speed > 40 &amp;&amp; Math.random() < 0.05) {
+      fuelGlitchTrucks.add(truck.id);
+      setTimeout(() => { fuelGlitchTrucks.delete(truck.id); }, 2000 + Math.random() * 2000);
+    }
+  });
+}, 2000);
+
+function sendTelemetrySSE() {
+  const timestamp = Date.now();
+  const readings = Object.values(trucks).map(truck => {
+    const reading = {
+      truckId: truck.id,
+      location: { ...truck.location },
+      speed: truck7SensorStuck &amp;&amp; truck.id === 'truck_7' ? 999 : truck.speed,
+      heading: truck.heading,
+      fuel: fuelGlitchTrucks.has(truck.id) ? 0 : truck.fuel,
+      engineTemp: truck.engineTemp,
+      status: truck.status,
+      timestamp
+    };
+    return reading;
+  });
+
+  // QUIRK 1: GPS batch — random truck sends 10-30 old readings at once
+  if (Math.random() < 0.1) {
+    const batchTruck = Object.values(trucks)[Math.floor(Math.random() * 12)];
+    if (batchTruck.status === 'active') {
+      const batchSize = 10 + Math.floor(Math.random() * 20);
+      const batchReadings = [];
+      for (let i = batchSize; i > 0; i--) {
+        batchReadings.push({
+          truckId: batchTruck.id,
+          location: {
+            lat: batchTruck.location.lat + (Math.random() - 0.5) * 0.002,
+            lng: batchTruck.location.lng + (Math.random() - 0.5) * 0.002
+          },
+          speed: batchTruck.speed + (Math.random() - 0.5) * 10,
+          heading: batchTruck.heading,
+          fuel: batchTruck.fuel,
+          engineTemp: batchTruck.engineTemp,
+          status: batchTruck.status,
+          timestamp: timestamp - (i * 2000),  // 2 seconds apart, going back in time
+          _batch: true,
+          _batchIndex: batchSize - i,
+          _batchTotal: batchSize
+        });
+      }
+      // Send batch all at once
+      const batchPayload = JSON.stringify({ type: 'gps_batch', truckId: batchTruck.id, readings: batchReadings });
+      sseClients.forEach(res => {
+        try { res.write(`data: ${batchPayload}\n\n`); } catch(e) {}
+      });
+    }
+  }
+
+  // QUIRK 5: Out of order — 10% chance a reading arrives with older timestamp
+  if (Math.random() < 0.1 &amp;&amp; readings.length > 0) {
+    const idx = Math.floor(Math.random() * readings.length);
+    readings[idx].timestamp = timestamp - 3000 - Math.random() * 5000;
+    readings[idx]._reordered = true;
+  }
+
+  // Normal telemetry send
+  const payload = JSON.stringify({ type: 'telemetry', readings, timestamp });
+  sseClients.forEach(res => {
+    try { res.write(`data: ${payload}\n\n`); } catch(e) {}
+  });
+}
+
+// Simulate every 2 seconds
+setInterval(() => {
+  simulateTrucks();
+  sendTelemetrySSE();
+}, 2000);
+
+// ============ DISPATCHER PRESENCE ============
+function broadcastWS(message, excludeWs = null) {
+  wss.clients.forEach(ws => {
+    if (ws !== excludeWs &amp;&amp; ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+  });
+}
+
+// ============ REST API ============
+
+// GET /api/fleet — all trucks
+app.get('/api/fleet', (req, res) => {
+  // QUIRK 7: 15% chance of 503
+  if (Math.random() < 0.15) {
+    res.set('Retry-After', '3');
+    return res.status(503).json({ error: 'Service under heavy load' });
+  }
+  const fleet = Object.values(trucks).map(t => ({
+    id: t.id, name: t.name, status: t.status,
+    location: t.location, speed: t.speed, heading: t.heading,
+    fuel: t.fuel, engineTemp: t.engineTemp,
+    currentRouteId: t.currentRouteId, _version: t._version
+  }));
+  res.json({ fleet, timestamp: Date.now() });
+});
+
+// GET /api/fleet/:truckId — single truck detail
+app.get('/api/fleet/:truckId', (req, res) => {
+  const truck = trucks[req.params.truckId];
+  if (!truck) return res.status(404).json({ error: 'Truck not found' });
+  res.json(truck);
+});
+
+// GET /api/routes — all routes
+app.get('/api/routes', (req, res) => {
+  res.json({ routes: Object.values(routes), timestamp: Date.now() });
+});
+
+// POST /api/routes — create a new route
+app.post('/api/routes', (req, res) => {
+  const dispatcherId = req.headers['x-dispatcher-id'];
+  if (!dispatcherId) return res.status(401).json({ error: 'X-Dispatcher-Id header required' });
+
+  const { truckId, destination, priority, notes } = req.body;
+  if (!truckId || !destination) return res.status(400).json({ error: 'truckId and destination required' });
+
+  const truck = trucks[truckId];
+  if (!truck) return res.status(404).json({ error: 'Truck not found' });
+
+  // Check if truck already has a route
+  if (truck.currentRouteId) {
+    return res.status(409).json({
+      error: 'Truck already assigned',
+      currentRouteId: truck.currentRouteId,
+      assignedBy: routes[truck.currentRouteId]?.assignedBy
+    });
+  }
+
+  const routeId = `route_${nextRouteId++}`;
+  const route = {
+    id: routeId,
+    truckId,
+    destination,
+    priority: priority || 'normal',
+    notes: notes || '',
+    status: 'assigned',      // assigned | in-progress | completed | cancelled
+    assignedBy: dispatcherId,
+    assignedAt: Date.now(),
+    _version: 1
+  };
+
+  routes[routeId] = route;
+  truck.currentRouteId = routeId;
+  truck.status = 'active';
+  truck._version++;
+
+  broadcastWS({
+    type: 'route_assigned',
+    route,
+    truckId,
+    assignedBy: dispatcherId,
+    truckVersion: truck._version,
+    timestamp: Date.now()
+  });
+
+  res.status(201).json(route);
+});
+
+// PATCH /api/routes/:routeId — update route status
+app.patch('/api/routes/:routeId', (req, res) => {
+  const dispatcherId = req.headers['x-dispatcher-id'];
+  if (!dispatcherId) return res.status(401).json({ error: 'X-Dispatcher-Id header required' });
+
+  const route = routes[req.params.routeId];
+  if (!route) return res.status(404).json({ error: 'Route not found' });
+
+  // QUIRK 4 + 8: Optimistic locking via If-Match header
+  const ifMatch = req.headers['if-match'];
+  if (ifMatch &amp;&amp; parseInt(ifMatch) !== route._version) {
+    return res.status(409).json({
+      error: 'Route was modified by another dispatcher',
+      currentVersion: route._version,
+      yourVersion: parseInt(ifMatch),
+      lastModifiedBy: route.lastModifiedBy || route.assignedBy
+    });
+  }
+
+  const { status, notes, priority } = req.body;
+
+  // Artificial delay to make race conditions more visible
+  const delay = 200 + Math.random() * 800;
+  setTimeout(() => {
+    // Re-check version after delay (QUIRK 8: race with reassignment)
+    if (ifMatch &amp;&amp; parseInt(ifMatch) !== route._version) {
+      return res.status(409).json({
+        error: 'Route was modified during processing',
+        currentVersion: route._version
+      });
+    }
+
+    if (status) route.status = status;
+    if (notes) route.notes = notes;
+    if (priority) route.priority = priority;
+    route.lastModifiedBy = dispatcherId;
+    route.lastModifiedAt = Date.now();
+    route._version++;
+
+    if (status === 'completed' || status === 'cancelled') {
+      const truck = trucks[route.truckId];
+      if (truck) {
+        truck.currentRouteId = null;
+        truck.status = 'idle';
+        truck._version++;
+      }
+    }
+
+    broadcastWS({
+      type: 'route_updated',
+      route,
+      updatedBy: dispatcherId,
+      timestamp: Date.now()
+    });
+
+    res.json(route);
+  }, delay);
+});
+
+// PUT /api/routes/:routeId/reassign — reassign route to different truck
+app.put('/api/routes/:routeId/reassign', (req, res) => {
+  const dispatcherId = req.headers['x-dispatcher-id'];
+  if (!dispatcherId) return res.status(401).json({ error: 'X-Dispatcher-Id header required' });
+
+  const route = routes[req.params.routeId];
+  if (!route) return res.status(404).json({ error: 'Route not found' });
+
+  const { newTruckId } = req.body;
+  const newTruck = trucks[newTruckId];
+  if (!newTruck) return res.status(404).json({ error: 'Target truck not found' });
+  if (newTruck.currentRouteId) {
+    return res.status(409).json({ error: 'Target truck already has an assigned route' });
+  }
+  if (newTruck.status === 'maintenance') {
+    return res.status(400).json({ error: 'Cannot assign to truck in maintenance' });
+  }
+
+  const oldTruck = trucks[route.truckId];
+  if (oldTruck) {
+    oldTruck.currentRouteId = null;
+    oldTruck.status = 'idle';
+    oldTruck._version++;
+  }
+
+  route.truckId = newTruckId;
+  route.reassignedBy = dispatcherId;
+  route.reassignedAt = Date.now();
+  route._version++;
+
+  newTruck.currentRouteId = route.id;
+  newTruck.status = 'active';
+  newTruck._version++;
+
+  broadcastWS({
+    type: 'route_reassigned',
+    route,
+    oldTruckId: oldTruck?.id,
+    newTruckId,
+    reassignedBy: dispatcherId,
+    timestamp: Date.now()
+  });
+
+  res.json(route);
+});
+
+// POST /api/fleet/:truckId/alert — dispatcher sends alert to truck
+app.post('/api/fleet/:truckId/alert', (req, res) => {
+  const dispatcherId = req.headers['x-dispatcher-id'];
+  const truck = trucks[req.params.truckId];
+  if (!truck) return res.status(404).json({ error: 'Truck not found' });
+
+  const { message, severity } = req.body;
+  const alert = {
+    id: crypto.randomUUID(),
+    truckId: truck.id,
+    message: message || 'Alert from dispatch',
+    severity: severity || 'info',
+    sentBy: dispatcherId,
+    timestamp: Date.now(),
+    acknowledged: false
+  };
+
+  broadcastWS({ type: 'truck_alert', alert });
+  res.status(201).json(alert);
+});
+
+// POST /api/reset — development reset
+app.post('/api/reset', (req, res) => {
+  routes = {};
+  nextRouteId = 1;
+  dispatchers = {};
+  initFleet();
+  broadcastWS({ type: 'fleet_reset', timestamp: Date.now() });
+  res.json({ success: true });
+});
+
+// GET /api/telemetry/stream — SSE endpoint
+app.get('/api/telemetry/stream', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+  res.write(`data: ${JSON.stringify({ type: 'connected', truckCount: 12, timestamp: Date.now() })}\n\n`);
+  sseClients.add(res);
+
+  const heartbeat = setInterval(() => {
+    res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
+  }, 15000);
+
+  req.on('close', () => {
+    sseClients.delete(res);
+    clearInterval(heartbeat);
+  });
+});
+
+// GET /api/telemetry/history/:truckId — last N readings for a truck
+app.get('/api/telemetry/history/:truckId', (req, res) => {
+  const truck = trucks[req.params.truckId];
+  if (!truck) return res.status(404).json({ error: 'Truck not found' });
+  const limit = Math.min(parseInt(req.query.limit) || 60, 300);
+  const history = [];
+  for (let i = limit; i > 0; i--) {
+    history.push({
+      truckId: truck.id,
+      location: {
+        lat: truck.location.lat + (Math.random() - 0.5) * 0.001 * i,
+        lng: truck.location.lng + (Math.random() - 0.5) * 0.001 * i
+      },
+      speed: Math.max(0, truck.speed + (Math.random() - 0.5) * 20),
+      fuel: Math.min(100, truck.fuel + i * 0.02),
+      engineTemp: truck.engineTemp + (Math.random() - 0.5) * 5,
+      timestamp: Date.now() - i * 2000
+    });
+  }
+  res.json({ history, count: history.length });
+});
+
+// ============ WEBSOCKET ============
+wss.on('connection', (ws) => {
+  let dispatcherId = null;
+
+  ws.on('message', (data) => {
+    try {
+      const msg = JSON.parse(data);
+
+      if (msg.type === 'register_dispatcher') {
+        dispatcherId = msg.dispatcherId || `dispatcher_${crypto.randomUUID().slice(0, 8)}`;
+        dispatchers[dispatcherId] = {
+          id: dispatcherId,
+          name: msg.name || 'Anonymous',
+          connectedAt: Date.now(),
+          ws
+        };
+        ws.send(JSON.stringify({ type: 'registered', dispatcherId }));
+        broadcastWS({
+          type: 'dispatcher_joined',
+          dispatcherId,
+          name: msg.name || 'Anonymous',
+          timestamp: Date.now(),
+          activeDispatchers: Object.keys(dispatchers).length
+        }, ws);
+      }
+
+      if (msg.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+      }
+
+      // Dispatcher "looking at" a truck (cursor presence)
+      if (msg.type === 'viewing_truck') {
+        broadcastWS({
+          type: 'dispatcher_viewing',
+          dispatcherId,
+          truckId: msg.truckId,
+          timestamp: Date.now()
+        }, ws);
+      }
+    } catch(e) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON' }));
+    }
+  });
+
+  ws.on('close', () => {
+    if (dispatcherId) {
+      // QUIRK 6: 20% chance of ghost presence (delayed removal)
+      if (Math.random() < 0.2) {
+        setTimeout(() => {
+          delete dispatchers[dispatcherId];
+          broadcastWS({
+            type: 'dispatcher_left',
+            dispatcherId,
+            timestamp: Date.now(),
+            activeDispatchers: Object.keys(dispatchers).length
+          });
+        }, 10000);
+      } else {
+        delete dispatchers[dispatcherId];
+        broadcastWS({
+          type: 'dispatcher_left',
+          dispatcherId,
+          timestamp: Date.now(),
+          activeDispatchers: Object.keys(dispatchers).length
+        });
+      }
+    }
+  });
+});
+
+// ============ START ============
+const PORT = 3000;
+server.listen(PORT, () => {
+  console.log(`🚛 FleetPulse Server running on port ${PORT}`);
+  console.log(`   HTTP API: http://localhost:${PORT}/api/fleet`);
+  console.log(`   Telemetry SSE: http://localhost:${PORT}/api/telemetry/stream`);
+  console.log(`   WebSocket: ws://localhost:${PORT}/ws`);
+  console.log(`   Reset: POST http://localhost:${PORT}/api/reset`);
+  console.log('');
+  console.log('   QUIRKS ACTIVE:');
+  console.log('   1. GPS batch (10-30 buffered readings at once on signal recovery)');
+  console.log('   2. Fuel sensor reads 0% during hard braking (2-4s)');
+  console.log('   3. Truck #7 speed sensor stuck at 999 km/h (periodic, 5-10s)');
+  console.log('   4. Route assignment 409 on version mismatch (optimistic locking)');
+  console.log('   5. Out-of-order GPS timestamps (10% chance)');
+  console.log('   6. Ghost dispatcher presence (20% delayed disconnect)');
+  console.log('   7. GET /api/fleet returns 503 under load (15%)');
+  console.log('   8. Route PATCH races with reassignment (409 during processing)');
+});
+</code></pre>
+</details>
+
+<hr/>
+
+<h2>📡 Required API Endpoints Reference</h2>
+
+<table>
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td><code>GET</code></td><td><code>/api/fleet</code></td><td>All trucks (15% returns 503)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/fleet/:truckId</code></td><td>Single truck detail</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/routes</code></td><td>All routes</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/routes</code></td><td>Create route (requires X-Dispatcher-Id)</td></tr>
+    <tr><td><code>PATCH</code></td><td><code>/api/routes/:routeId</code></td><td>Update route (supports If-Match for optimistic lock)</td></tr>
+    <tr><td><code>PUT</code></td><td><code>/api/routes/:routeId/reassign</code></td><td>Reassign route to different truck</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/fleet/:truckId/alert</code></td><td>Send alert to truck</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/telemetry/stream</code></td><td>SSE — live GPS/telemetry for all trucks</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/telemetry/history/:truckId</code></td><td>Historical telemetry (?limit=)</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/reset</code></td><td>Reset fleet state (dev only)</td></tr>
+</table>
+
+<h3>WebSocket Message Types (Server → Client)</h3>
+<table>
+    <tr><th>Type</th><th>Description</th></tr>
+    <tr><td><code>registered</code></td><td>Dispatcher registration confirmed</td></tr>
+    <tr><td><code>dispatcher_joined</code></td><td>Another dispatcher came online</td></tr>
+    <tr><td><code>dispatcher_left</code></td><td>A dispatcher disconnected (may be delayed — quirk #6)</td></tr>
+    <tr><td><code>dispatcher_viewing</code></td><td>A dispatcher is looking at a specific truck</td></tr>
+    <tr><td><code>route_assigned</code></td><td>New route created</td></tr>
+    <tr><td><code>route_updated</code></td><td>Route status/details changed</td></tr>
+    <tr><td><code>route_reassigned</code></td><td>Route moved to different truck</td></tr>
+    <tr><td><code>truck_alert</code></td><td>Alert sent to truck by dispatcher</td></tr>
+    <tr><td><code>fleet_reset</code></td><td>Fleet was reset (dev)</td></tr>
+</table>
+
+<h3>WebSocket Message Types (Client → Server)</h3>
+<table>
+    <tr><th>Type</th><th>Description</th></tr>
+    <tr><td><code>register_dispatcher</code></td><td>Register with name — get back dispatcherId</td></tr>
+    <tr><td><code>ping</code></td><td>Keepalive → server responds <code>pong</code></td></tr>
+    <tr><td><code>viewing_truck</code></td><td>Notify others which truck you're looking at</td></tr>
+</table>
+
+<hr/>
+
+<h2>📌 Basic Requirements</h2>
+
+<h3>1. Fleet Overview &amp; Map</h3>
+<ul>
+    <li>Display all 12 trucks with live position updates from SSE</li>
+    <li>Show truck status (active / idle / maintenance) with visual distinction</li>
+    <li>Handle GPS batch readings — don't render 30 map markers for one truck, show the path or latest position</li>
+    <li>Handle out-of-order GPS timestamps (use timestamp, not arrival order)</li>
+    <li>Handle stuck speed sensor on Truck #7 (don't display 999 km/h to the dispatcher — flag, clamp, or annotate)</li>
+    <li>Handle fuel sensor glitch (0% during braking — don't trigger false low-fuel alerts)</li>
+    <li>Retry logic for 503 on fleet endpoint (respect <code>Retry-After</code>)</li>
+</ul>
+
+<h3>2. Route Management</h3>
+<ul>
+    <li>Create new routes with truck assignment</li>
+    <li>Update route status (assigned → in-progress → completed / cancelled)</li>
+    <li>Handle 409 conflicts gracefully — show the dispatcher WHO made the conflicting change</li>
+    <li>Implement optimistic locking via <code>If-Match</code> header with route version</li>
+    <li>Reassign routes between trucks</li>
+    <li>Show route history / audit log</li>
+</ul>
+
+<h3>3. Dispatcher Presence</h3>
+<ul>
+    <li>Register as a dispatcher via WebSocket</li>
+    <li>Show other active dispatchers</li>
+    <li>Show which truck each dispatcher is currently viewing (collaborative cursor)</li>
+    <li>Handle ghost presence — if a dispatcher "leaves" but the event is delayed, the UI shouldn't break when the leave event finally arrives</li>
+</ul>
+
+<h3>4. Vehicle Detail Panel</h3>
+<ul>
+    <li>Click a truck to see detailed telemetry: speed, fuel, engine temp, mileage</li>
+    <li>Show speed/fuel/temp as live-updating charts or gauges</li>
+    <li>Send alerts to specific trucks</li>
+    <li>Show assigned route details</li>
+</ul>
+
+<h3>5. Unit Tests</h3>
+<ul>
+    <li>Test GPS batch processing logic</li>
+    <li>Test out-of-order timestamp handling</li>
+    <li>Test fuel sensor anomaly detection (distinguish real 0% from glitch)</li>
+    <li>Test speed sensor anomaly detection (999 km/h filtering)</li>
+    <li>Test optimistic locking / conflict resolution flow</li>
+    <li>Test dispatcher presence with ghost handling</li>
+    <li>Minimum 8 meaningful test cases</li>
+</ul>
+
+<hr/>
+
+<h2>⭐ Bonus Features</h2>
+
+<p><em>Not required, but demonstrate senior-level initiative:</em></p>
+<ul>
+    <li><strong>Geofencing alerts:</strong> Define zones on the map. Alert if a truck leaves its expected area.</li>
+    <li><strong>Circuit Breaker:</strong> If <code>GET /api/fleet</code> returns 503 three times consecutively, enter degraded mode — show cached data with "stale" indicator, probe for recovery.</li>
+    <li><strong>Anomaly Detection Dashboard:</strong> Aggregate sensor anomalies (fuel glitches, speed stuck events) with timestamps. Help dispatchers distinguish real problems from sensor bugs.</li>
+    <li><strong>Observability Panel:</strong> SSE events/second, WebSocket latency, dropped events, reconnection count. Developer-facing, not for dispatchers.</li>
+    <li><strong>Undo/Conflict Resolution:</strong> When a 409 occurs, show both versions side-by-side and let the dispatcher choose.</li>
+    <li><strong>Keyboard shortcuts:</strong> Quick-assign routes, switch between trucks, acknowledge alerts via keyboard.</li>
+    <li><strong>Filterable Fleet View:</strong> Filter trucks by status, fuel level, region, or route assignment.</li>
+</ul>
+
+<hr/>
+
+<h2>🔬 Technical Requirements</h2>
+
+<table>
+    <tr><th>Requirement</th><th>Details</th></tr>
+    <tr><td>Language</td><td>JavaScript or TypeScript</td></tr>
+    <tr><td>Framework</td><td>React (recommended), Angular, or Vanilla JS</td></tr>
+    <tr><td>Testing</td><td>Jest, Vitest, or equivalent. Minimum 8 meaningful test cases.</td></tr>
+    <tr><td>Build</td><td>Must run with <code>npm install &amp;&amp; npm start</code></td></tr>
+    <tr><td>Tests</td><td>Must run with <code>npm test</code></td></tr>
+    <tr><td>Map</td><td>Any map library (Leaflet, Google Maps, Mapbox) or simple coordinate grid — map quality is not graded</td></tr>
+    <tr><td>Browser</td><td>Latest Chrome is sufficient</td></tr>
+    <tr><td>AI Tools</td><td>Allowed and encouraged. Document in <code>PROMPTS.md</code></td></tr>
+</table>
+
+<hr/>
+
+<h2>📊 Evaluation Criteria</h2>
+
+<table>
+    <tr><th>Category</th><th>Weight</th><th>What We're Looking For</th></tr>
+    <tr>
+        <td><strong>Architectural Design</strong></td>
+        <td>20%</td>
+        <td>Code organization, separation of concerns, extensibility. Is the telemetry pipeline decoupled from UI? Could a new vehicle type be added without touching existing code?</td>
+    </tr>
+    <tr>
+        <td><strong>Event-Driven Patterns</strong></td>
+        <td>15%</td>
+        <td>Clean SSE + WebSocket handling, event typing, lifecycle management, reconnection, cleanup</td>
+    </tr>
+    <tr>
+        <td><strong>Race Condition &amp; Async</strong></td>
+        <td>20%</td>
+        <td>GPS ordering, batch handling, sensor anomaly filtering, 503 retry, optimistic locking, conflict resolution, ghost presence</td>
+    </tr>
+    <tr>
+        <td><strong>Performance &amp; Resilience</strong></td>
+        <td>15%</td>
+        <td>12 trucks × 2s updates. Can it run for hours? Data windowing? Throttled rendering? Circuit breaker for 503?</td>
+    </tr>
+    <tr>
+        <td><strong>Security &amp; Quality</strong></td>
+        <td>10%</td>
+        <td>Dispatcher auth header, confirmation on route changes, input validation, error boundaries, conflict UX</td>
+    </tr>
+    <tr>
+        <td><strong>Testing</strong></td>
+        <td>10%</td>
+        <td>Meaningful edge-case tests. Tests for sensor anomalies, conflict handling, batch processing, not just "renders".</td>
+    </tr>
+    <tr>
+        <td><strong>AI Usage &amp; Prompts</strong></td>
+        <td>10%</td>
+        <td>Quality of PROMPTS.md — strategic use, iteration, critical evaluation of AI output</td>
+    </tr>
+</table>
+
+<hr/>
+
+<h2>📅 Recommended Execution Order</h2>
+
+<table>
+    <tr><th>Phase</th><th>Task</th><th>Time</th></tr>
+    <tr><td>1</td><td>Run mock server, test endpoints, observe SSE stream &amp; WebSocket in browser/Postman</td><td>30 min</td></tr>
+    <tr><td>2</td><td>Design architecture: plan component tree, event flow, state management, data pipeline</td><td>30 min</td></tr>
+    <tr><td>3</td><td>Build fleet overview + SSE connection + basic truck list/grid/map</td><td>60 min</td></tr>
+    <tr><td>4</td><td>Handle telemetry quirks: GPS batch, out-of-order, speed sensor, fuel glitch</td><td>60 min</td></tr>
+    <tr><td>5</td><td>Build route management with optimistic locking &amp; conflict resolution</td><td>60 min</td></tr>
+    <tr><td>6</td><td>Build dispatcher presence via WebSocket + collaborative viewing indicators</td><td>30 min</td></tr>
+    <tr><td>7</td><td>Build vehicle detail panel with charts/gauges</td><td>30 min</td></tr>
+    <tr><td>8</td><td>Write unit tests (minimum 8)</td><td>60 min</td></tr>
+    <tr><td>9</td><td>Polish, bonus features, PROMPTS.md, README.md</td><td>45 min</td></tr>
+</table>
+
+<hr/>
+
+<h2>📦 Submission Instructions</h2>
+
+<ol>
+    <li>Create a Git repository with your solution</li>
+    <li>Include <code>README.md</code> with:
+        <ul>
+            <li>Setup instructions</li>
+            <li>Architecture overview — how data flows from SSE/WS through your code to the UI</li>
+            <li>Key technical decisions and trade-offs</li>
+            <li>How you handle multi-dispatcher conflicts</li>
+            <li>Known issues or limitations</li>
+            <li>What you'd improve with more time</li>
+        </ul>
+    </li>
+    <li>Include <code>PROMPTS.md</code> — your AI usage journal</li>
+    <li>Include the mock server file (unchanged)</li>
+    <li>Ensure <code>npm install &amp;&amp; npm start</code> works</li>
+    <li>Ensure <code>npm test</code> runs and passes</li>
+</ol>
+
+<hr/>
+
+<h2>💡 Tips</h2>
+
+<div class="success-panel">
+    <ul>
+        <li><strong>Open two browser tabs</strong> — register as two different dispatchers to test multi-user scenarios and conflict handling.</li>
+        <li><strong>Watch the SSE stream raw</strong> before coding — you'll see the quirks in action.</li>
+        <li><strong>The 8 quirks are the real test.</strong> A working dashboard that ignores sensor anomalies will score lower than an incomplete one that handles them thoughtfully.</li>
+        <li><strong>The map doesn't need to be beautiful.</strong> A simple coordinate grid or basic Leaflet map is fine. We're testing your data pipeline, not your CSS.</li>
+        <li><strong>Conflict resolution UX matters.</strong> When two dispatchers clash, what does each one see? This is a senior-level design challenge.</li>
+        <li><strong>Use <code>POST /api/reset</code></strong> to restart the fleet during development.</li>
+    </ul>
+</div>
+
+<div class="warning-panel">
+    <strong>⚠️ Senior-Level Expectation:</strong> In the follow-up defense interview, you will need to justify architectural decisions, discuss trade-offs, explain how your solution handles concurrent dispatchers, and identify what you'd monitor in production. Code you cannot explain or defend will count against you.
+</div>
+
+<hr/>
+<p style="color: #6B778C; font-size: 0.85em;">Senior Interview Task #4 v1.0 | Engineering Hiring | February 2026</p>
+
+</body>
+</html>
