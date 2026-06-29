@@ -42,6 +42,7 @@ describe('TelemetryPipeline', () => {
     applyReading: ReturnType<typeof vi.fn>;
     applyTrail: ReturnType<typeof vi.fn>;
     lastAcceptedTsFor: ReturnType<typeof vi.fn>;
+    latestFor: ReturnType<typeof vi.fn>;
   };
   let connectionStoreSpy: {
     markConnected: ReturnType<typeof vi.fn>;
@@ -64,6 +65,7 @@ describe('TelemetryPipeline', () => {
       applyReading: vi.fn(),
       applyTrail: vi.fn(),
       lastAcceptedTsFor: vi.fn().mockReturnValue(0),
+      latestFor: vi.fn().mockReturnValue(null),
     };
     connectionStoreSpy = {
       markConnected: vi.fn(),
@@ -157,7 +159,7 @@ describe('TelemetryPipeline', () => {
     );
     expect(fleetStoreSpy.patchTruck).toHaveBeenCalledWith(
       'truck_1',
-      expect.objectContaining({ speed: 60 }),
+      expect.objectContaining({ speed: 60, fuel: 75 }),
     );
   });
 
@@ -184,7 +186,7 @@ describe('TelemetryPipeline', () => {
     );
     expect(fleetStoreSpy.patchTruck).toHaveBeenCalledWith(
       'truck_1',
-      expect.objectContaining({ speed: 60 }),
+      expect.objectContaining({ speed: 60, fuel: 75 }),
     );
   });
 
@@ -203,6 +205,88 @@ describe('TelemetryPipeline', () => {
     expect(logSpy.warn).toHaveBeenCalledWith(
       'TelemetryPipeline',
       expect.stringContaining('Unknown SSE frame'),
+    );
+  });
+
+  // ── P4: anomaly detection — telemetry ────────────────────────────────────────
+
+  it('speed 999 is annotated with speedSensorError and applyReading receives annotated reading', () => {
+    const raw = makeRawReading({ speed: 999, timestamp: 1001 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    expect(telemetryStoreSpy.applyReading).toHaveBeenCalledWith(
+      expect.objectContaining({ speedSensorError: true, displaySpeed: null }),
+    );
+  });
+
+  it('speed 999 does not patch FleetStore with raw sensor value', () => {
+    const raw = makeRawReading({ speed: 999, timestamp: 1001 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    expect(fleetStoreSpy.patchTruck).toHaveBeenCalledTimes(1);
+    const patch = fleetStoreSpy.patchTruck.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch['speed']).toBeUndefined();
+  });
+
+  it('speed 999 carries forward previous displaySpeed to FleetStore patch', () => {
+    telemetryStoreSpy.latestFor.mockReturnValue({ displaySpeed: 60, displayFuel: 75 });
+    const raw = makeRawReading({ speed: 999, timestamp: 1001 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    expect(fleetStoreSpy.patchTruck).toHaveBeenCalledWith(
+      'truck_1',
+      expect.objectContaining({ speed: 60 }),
+    );
+  });
+
+  it('fuel 0 is annotated with fuelGlitch and applyReading receives annotated reading', () => {
+    const raw = makeRawReading({ fuel: 0, timestamp: 1001 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    expect(telemetryStoreSpy.applyReading).toHaveBeenCalledWith(
+      expect.objectContaining({ fuelGlitch: true }),
+    );
+  });
+
+  it('fuel 0 glitch does not patch FleetStore with 0', () => {
+    const raw = makeRawReading({ fuel: 0, timestamp: 1001 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    const patch = fleetStoreSpy.patchTruck.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch['fuel']).toBeUndefined();
+  });
+
+  it('fuel 0 carries forward previous displayFuel to FleetStore patch', () => {
+    telemetryStoreSpy.latestFor.mockReturnValue({ displaySpeed: 60, displayFuel: 75 });
+    const raw = makeRawReading({ fuel: 0, timestamp: 1001 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    expect(fleetStoreSpy.patchTruck).toHaveBeenCalledWith(
+      'truck_1',
+      expect.objectContaining({ fuel: 75 }),
+    );
+  });
+
+  // ── P4: anomaly detection — gps_batch ───────────────────────────────────────
+
+  it('gps_batch with speed 999 does not patch FleetStore with 999', () => {
+    const readings = [makeRawReading({ truckId: 'truck_1', speed: 999, fuel: 75, timestamp: 1001 })];
+    events$.next({ kind: 'message', message: { type: 'gps_batch', truckId: 'truck_1', readings } });
+    const patch = fleetStoreSpy.patchTruck.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch['speed']).toBeUndefined();
+    expect(patch['fuel']).toBe(75);
+  });
+
+  it('gps_batch annotations carry forward display values within the batch', () => {
+    const readings = [
+      makeRawReading({ truckId: 'truck_1', speed: 60, fuel: 75, timestamp: 1001 }),
+      makeRawReading({ truckId: 'truck_1', speed: 999, fuel: 0, timestamp: 1002 }),
+      makeRawReading({ truckId: 'truck_1', speed: 70, fuel: 50, timestamp: 1003 }),
+    ];
+    events$.next({ kind: 'message', message: { type: 'gps_batch', truckId: 'truck_1', readings } });
+
+    expect(telemetryStoreSpy.applyTrail).toHaveBeenCalledWith(
+      'truck_1',
+      expect.arrayContaining([
+        expect.objectContaining({ timestamp: 1001, speedSensorError: false, displaySpeed: 60, fuelGlitch: false, displayFuel: 75 }),
+        expect.objectContaining({ timestamp: 1002, speedSensorError: true, displaySpeed: 60, fuelGlitch: true, displayFuel: 75 }),
+        expect.objectContaining({ timestamp: 1003, speedSensorError: false, displaySpeed: 70, fuelGlitch: false, displayFuel: 50 }),
+      ]),
+      expect.objectContaining({ timestamp: 1003, speedSensorError: false, displaySpeed: 70 }),
     );
   });
 });

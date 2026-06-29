@@ -9,8 +9,11 @@ import { LogService } from '../../core/logging/log.service';
 import { normalize } from './normalize';
 import { orderGuard } from './order-guard';
 import { BatchProcessor } from './batch-processor';
+import { detectSpeedAnomaly } from './speed-anomaly-detector';
+import { detectFuelGlitch } from './fuel-glitch-detector';
 import type { SseMessage, UnknownSseMessage } from '../../shared/models/sse.model';
 import type { TruckReading } from '../../shared/models/telemetry.model';
+import type { TruckListItem } from '../../shared/models/truck.model';
 
 const SCOPE = 'TelemetryPipeline';
 
@@ -66,10 +69,13 @@ export class TelemetryPipeline {
 
       case 'telemetry':
         for (const raw of msg.readings) {
-          const reading = normalize(raw);
-          if (orderGuard(reading, this.telemetryStore.lastAcceptedTsFor(reading.truckId)) === 'ACCEPT') {
-            this.telemetryStore.applyReading(reading);
-            this.fleetStore.patchTruck(reading.truckId, livePatch(reading));
+          const normalized = normalize(raw);
+          if (orderGuard(normalized, this.telemetryStore.lastAcceptedTsFor(normalized.truckId)) === 'ACCEPT') {
+            const prev = this.telemetryStore.latestFor(normalized.truckId);
+            const withSpeed = detectSpeedAnomaly(normalized, prev?.displaySpeed);
+            const annotated = detectFuelGlitch(withSpeed, prev?.displayFuel);
+            this.telemetryStore.applyReading(annotated);
+            this.fleetStore.patchTruck(annotated.truckId, livePatch(annotated));
           }
         }
         break;
@@ -78,8 +84,23 @@ export class TelemetryPipeline {
         const lastAcceptedTs = this.telemetryStore.lastAcceptedTsFor(msg.truckId);
         const { trail, latest } = BatchProcessor.collapse(msg.readings, lastAcceptedTs);
         if (latest !== null) {
-          this.telemetryStore.applyTrail(msg.truckId, trail, latest);
-          this.fleetStore.patchTruck(msg.truckId, livePatch(latest));
+          const prevReading = this.telemetryStore.latestFor(msg.truckId);
+          let prevDisplaySpeed: number | null | undefined = prevReading?.displaySpeed;
+          let prevDisplayFuel: number | undefined = prevReading?.displayFuel;
+
+          const annotatedTrail = trail.map(r => {
+            const withSpeed = detectSpeedAnomaly(r, prevDisplaySpeed);
+            if (!withSpeed.speedSensorError && withSpeed.displaySpeed != null) {
+              prevDisplaySpeed = withSpeed.displaySpeed;
+            }
+            const annotated = detectFuelGlitch(withSpeed, prevDisplayFuel);
+            if (!annotated.fuelGlitch) prevDisplayFuel = annotated.displayFuel;
+            return annotated;
+          });
+
+          const annotatedLatest = annotatedTrail[annotatedTrail.length - 1];
+          this.telemetryStore.applyTrail(msg.truckId, annotatedTrail, annotatedLatest);
+          this.fleetStore.patchTruck(msg.truckId, livePatch(annotatedLatest));
         }
         break;
       }
@@ -91,13 +112,13 @@ export class TelemetryPipeline {
   }
 }
 
-function livePatch(r: TruckReading) {
+function livePatch(r: TruckReading): Partial<TruckListItem> {
   return {
     location: r.location,
-    speed: r.speed,
     heading: r.heading,
-    fuel: r.fuel,
     engineTemp: r.engineTemp,
     status: r.status,
+    ...(typeof r.displaySpeed === 'number' ? { speed: r.displaySpeed } : {}),
+    ...(typeof r.displayFuel === 'number' ? { fuel: r.displayFuel } : {}),
   };
 }
