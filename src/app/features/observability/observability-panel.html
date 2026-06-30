@@ -1,0 +1,70 @@
+<section class="obs-panel">
+  <h3 class="obs-panel__title">Observability</h3>
+
+  <div class="obs-panel__grid">
+    <div class="obs-card">
+      <h4 class="obs-card__label">SSE</h4>
+      <span class="obs__badge obs__sse-badge obs__badge--{{ connectionStore.sse() }}">{{ connectionStore.sse() }}</span>
+    </div>
+
+    <div class="obs-card">
+      <h4 class="obs-card__label">WebSocket</h4>
+      <span class="obs__badge obs__ws-badge obs__badge--{{ presenceStore.wsState() }}">{{ presenceStore.wsState() }}</span>
+    </div>
+
+    <div class="obs-card">
+      <h4 class="obs-card__label">Status</h4>
+      @if (connectionStore.isDegraded()) {
+        <span class="obs__status obs__status--degraded">Degraded</span>
+      } @else {
+        <span class="obs__status obs__status--live">Live</span>
+      }
+    </div>
+
+    <div class="obs-card">
+      <h4 class="obs-card__label">Last Heartbeat</h4>
+      @if (connectionStore.lastHeartbeatAt()) {
+        <span class="obs__heartbeat">{{ connectionStore.lastHeartbeatAt() | date:'HH:mm:ss' }}</span>
+      } @else {
+        <span class="obs__heartbeat">—</span>
+      }
+    </div>
+
+    <div class="obs-card">
+      <h4 class="obs-card__label">Active Dispatchers</h4>
+      <span class="obs__dispatcher-count">{{ presenceStore.activeCount() }}</span>
+    </div>
+
+    <div class="obs-card">
+      <h4 class="obs-card__label">Own ID</h4>
+      <span class="obs__self-id">{{ presenceStore.selfId() ?? '—' }}</span>
+    </div>
+
+    <div class="obs-card">
+      <h4 class="obs-card__label">Anomalous Trucks</h4>
+      <span class="obs__anomaly-count">{{ anomalyCount() }}</span>
+    </div>
+
+    <div class="obs-card">
+      <h4 class="obs-card__label">Dropped Readings</h4>
+      <span class="obs__dropped-count">{{ telemetryHealthStore.droppedCount() }}</span>
+    </div>
+  </div>
+
+  <div class="obs-panel__audit">
+    <h4 class="obs-panel__section-title">Recent Operations</h4>
+    @if (recentAuditEntries().length === 0) {
+      <p class="obs__audit-empty">No operations yet</p>
+    } @else {
+      <ul class="obs__audit-list" role="list">
+        @for (entry of recentAuditEntries(); track entry.timestamp) {
+          <li class="obs__audit-item">
+            <span class="obs__audit-action obs__audit-action--{{ entry.action }}">{{ entry.action }}</span>
+            <span class="obs__audit-detail">{{ entry.detail }}</span>
+            <span class="obs__audit-time">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</section>

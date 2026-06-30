@@ -5,6 +5,7 @@ import { FleetService } from '../fleet/fleet.service';
 import { FleetStore } from '../fleet/fleet.store';
 import { ConnectionStore } from '../fleet/connection.store';
 import { TelemetryStore } from './telemetry.store';
+import { TelemetryHealthStore } from '../observability/telemetry-health.store';
 import { LogService } from '../../core/logging/log.service';
 import { normalize } from './normalize';
 import { orderGuard } from './order-guard';
@@ -24,6 +25,7 @@ export class TelemetryPipeline {
   private readonly fleetStore = inject(FleetStore);
   private readonly connectionStore = inject(ConnectionStore);
   private readonly telemetryStore = inject(TelemetryStore);
+  private readonly telemetryHealthStore = inject(TelemetryHealthStore);
   private readonly log = inject(LogService);
   // Captured at root-service construction so start() is safe to call from any context.
   private readonly destroyRef = inject(DestroyRef);
@@ -76,12 +78,18 @@ export class TelemetryPipeline {
             const annotated = detectFuelGlitch(withSpeed, prev?.displayFuel);
             this.telemetryStore.applyReading(annotated);
             this.fleetStore.patchTruck(annotated.truckId, livePatch(annotated));
+          } else {
+            this.telemetryHealthStore.incrementDropped();
           }
         }
         break;
 
       case 'gps_batch': {
         const lastAcceptedTs = this.telemetryStore.lastAcceptedTsFor(msg.truckId);
+        const droppedCount = msg.readings.filter(r => r.timestamp <= lastAcceptedTs).length;
+        if (droppedCount > 0) {
+          this.telemetryHealthStore.incrementDropped(droppedCount);
+        }
         const { trail, latest } = BatchProcessor.collapse(msg.readings, lastAcceptedTs);
         if (latest !== null) {
           const prevReading = this.telemetryStore.latestFor(msg.truckId);

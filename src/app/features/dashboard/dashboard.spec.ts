@@ -22,6 +22,7 @@ import { AuditLog } from '../../domain/routes/audit-log';
 import { SelectedVehicleStore } from '../../domain/vehicle-selection/selected-vehicle.store';
 import { AlertsStore } from '../../domain/alerts/alerts.store';
 import { VehicleDetailService } from '../../domain/vehicle-detail/vehicle-detail.service';
+import { TelemetryHealthStore } from '../../domain/observability/telemetry-health.store';
 import { of } from 'rxjs';
 import type { TruckListItem } from '../../shared/models/truck.model';
 import type { SseConnectionState } from '../../domain/fleet/connection.store';
@@ -105,6 +106,7 @@ describe('DashboardComponent', () => {
             detailError: signal(null),
           },
         },
+        { provide: TelemetryHealthStore, useValue: { droppedCount: signal(0), incrementDropped: vi.fn(), reset: vi.fn() } },
       ],
     }).compileComponents();
   });
@@ -232,6 +234,11 @@ describe('DashboardComponent', () => {
   it('renders the vehicle detail component', () => {
     const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-vehicle-detail')).not.toBeNull();
+  });
+
+  it('renders the observability panel component', () => {
+    const fixture = render();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-observability-panel')).not.toBeNull();
   });
 
   it('calls selectedVehicleStore.selectTruck when a fleet item is clicked', () => {
