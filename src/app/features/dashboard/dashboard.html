@@ -20,7 +20,64 @@
   </header>
 
   <section class="fleet-overview" aria-label="Fleet overview">
-    <h2 class="fleet-overview__title">Fleet ({{ fleetStore.truckList().length }})</h2>
+    <div class="fleet-overview__header">
+      <h2 class="fleet-overview__title">
+        Fleet
+        @if (fleetStore.truckList().length > 0) {
+          <span class="fleet-overview__count">
+            — showing {{ filteredTruckList().length }} of {{ fleetStore.truckList().length }}
+          </span>
+        }
+      </h2>
+    </div>
+
+    <div class="fleet-filters" role="search" aria-label="Filter fleet">
+      <input
+        class="fleet-filters__text"
+        type="search"
+        placeholder="Search by name or ID"
+        [value]="filterText()"
+        (input)="setFilterText($any($event.target).value)"
+        aria-label="Search trucks by name or ID"
+      />
+      <select
+        class="fleet-filters__select"
+        [value]="filterStatus()"
+        (change)="setFilterStatus($any($event.target).value)"
+        aria-label="Filter by status"
+      >
+        <option value="all">All statuses</option>
+        <option value="active">Active</option>
+        <option value="idle">Idle</option>
+        <option value="maintenance">Maintenance</option>
+      </select>
+      <select
+        class="fleet-filters__select"
+        [value]="filterAssignment()"
+        (change)="setFilterAssignment($any($event.target).value)"
+        aria-label="Filter by route assignment"
+      >
+        <option value="all">All assignments</option>
+        <option value="assigned">Assigned</option>
+        <option value="unassigned">Unassigned</option>
+      </select>
+      <label class="fleet-filters__low-fuel-label">
+        <input
+          class="fleet-filters__low-fuel-cb"
+          type="checkbox"
+          [checked]="lowFuelOnly()"
+          (change)="setLowFuelOnly($any($event.target).checked)"
+        />
+        Low fuel only (&lt;25%)
+      </label>
+      <button
+        class="fleet-filters__reset-btn"
+        type="button"
+        (click)="resetFilters()"
+      >
+        Reset filters
+      </button>
+    </div>
 
     <div class="fleet-list__header" aria-hidden="true">
       <span>Truck</span>
@@ -31,7 +88,7 @@
     </div>
 
     <ul class="fleet-list" role="list">
-      @for (truck of fleetStore.truckList(); track truck.id) {
+      @for (truck of filteredTruckList(); track truck.id) {
         <li
           class="fleet-item"
           [class.fleet-item--selected]="selectedVehicleStore.selectedTruckId() === truck.id"
@@ -57,7 +114,15 @@
           }
         </li>
       } @empty {
-        <li class="fleet-item fleet-item--empty">No fleet data yet</li>
+        @if (fleetStore.truckList().length > 0) {
+          <li class="fleet-item fleet-item--empty fleet-item--no-match">
+            No trucks match the current filters
+          </li>
+        } @else {
+          <li class="fleet-item fleet-item--empty">
+            No fleet data yet
+          </li>
+        }
       }
     </ul>
   </section>
