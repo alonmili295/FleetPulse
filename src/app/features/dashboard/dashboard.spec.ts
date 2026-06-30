@@ -272,6 +272,211 @@ describe('DashboardComponent', () => {
     expect(selectedVehicleStoreMock.selectTruck).toHaveBeenCalledWith('truck_1');
   });
 
+  // ── Fleet filtering ──────────────────────────────────────────────
+
+  it('text filter matches trucks by name (case-insensitive)', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Alpha One' },
+      { ...mockTruck, id: 'truck_2', name: 'Beta Two' },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterText.set('alpha');
+    fixture.detectChanges();
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('Alpha One');
+  });
+
+  it('text filter matches trucks by id (case-insensitive)', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_abc', name: 'Truck ABC' },
+      { ...mockTruck, id: 'truck_xyz', name: 'Truck XYZ' },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterText.set('ABC');
+    fixture.detectChanges();
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('Truck ABC');
+  });
+
+  it('status filter keeps only matching trucks', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Active Truck', status: 'active' },
+      { ...mockTruck, id: 'truck_2', name: 'Idle Truck', status: 'idle' },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterStatus.set('active');
+    fixture.detectChanges();
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('Active Truck');
+  });
+
+  it('assignment filter "assigned" keeps only trucks with a currentRouteId', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Assigned', currentRouteId: 'route_1' },
+      { ...mockTruck, id: 'truck_2', name: 'Free', currentRouteId: null },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterAssignment.set('assigned');
+    fixture.detectChanges();
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('Assigned');
+  });
+
+  it('assignment filter "unassigned" keeps only trucks without a currentRouteId', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Assigned', currentRouteId: 'route_1' },
+      { ...mockTruck, id: 'truck_2', name: 'Free', currentRouteId: null },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterAssignment.set('unassigned');
+    fixture.detectChanges();
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('Free');
+  });
+
+  it('low-fuel filter keeps only trucks with fuel < 25 (boundary: fuel === 25 excluded)', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Low',    fuel: 24 },
+      { ...mockTruck, id: 'truck_2', name: 'Border', fuel: 25 },
+      { ...mockTruck, id: 'truck_3', name: 'Full',   fuel: 80 },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.lowFuelOnly.set(true);
+    fixture.detectChanges();
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('Low');
+  });
+
+  it('combined filters AND together (text + status)', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Alpha Active', status: 'active' },
+      { ...mockTruck, id: 'truck_2', name: 'Alpha Idle',   status: 'idle' },
+      { ...mockTruck, id: 'truck_3', name: 'Beta Active',  status: 'active' },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterText.set('alpha');
+    fixture.componentInstance.filterStatus.set('active');
+    fixture.detectChanges();
+    const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('Alpha Active');
+  });
+
+  it('resetFilters() restores defaults and shows the full list', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Truck One', status: 'active' },
+      { ...mockTruck, id: 'truck_2', name: 'Truck Two', status: 'idle' },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterStatus.set('active');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)').length).toBe(1);
+
+    fixture.componentInstance.resetFilters();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)').length).toBe(2);
+    expect(fixture.componentInstance.filterText()).toBe('');
+    expect(fixture.componentInstance.filterStatus()).toBe('all');
+    expect(fixture.componentInstance.filterAssignment()).toBe('all');
+    expect(fixture.componentInstance.lowFuelOnly()).toBe(false);
+  });
+
+  it('filtered count renders "showing X of Y" when fleet has trucks', () => {
+    truckList.set([
+      { ...mockTruck, id: 'truck_1', name: 'Active One', status: 'active' },
+      { ...mockTruck, id: 'truck_2', name: 'Idle Two',   status: 'idle' },
+    ]);
+    const fixture = render();
+    fixture.componentInstance.filterStatus.set('active');
+    fixture.detectChanges();
+    const count = (fixture.nativeElement as HTMLElement).querySelector('.fleet-overview__count');
+    expect(count?.textContent).toContain('1');
+    expect(count?.textContent).toContain('2');
+  });
+
+  it('shows no-match empty state when filters exclude all trucks but fleet has data', () => {
+    truckList.set([{ ...mockTruck, id: 'truck_1', name: 'Truck One', status: 'active' }]);
+    const fixture = render();
+    fixture.componentInstance.filterStatus.set('maintenance');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.fleet-item--no-match')).not.toBeNull();
+    expect(el.querySelector('.fleet-item--no-match')?.textContent).toContain('No trucks match');
+    expect(el.textContent).not.toContain('No fleet data yet');
+  });
+
+  // ── Filter clears selection ───────────────────────────────────────
+
+  it('changing text filter clears the selected truck', () => {
+    truckList.set([mockTruck]);
+    selectedTruckId.set('truck_1');
+    const fixture = render();
+    const store = TestBed.inject(SelectedVehicleStore) as unknown as { clearSelection: ReturnType<typeof vi.fn> };
+
+    fixture.componentInstance.setFilterText('xyz');
+    expect(store.clearSelection).toHaveBeenCalled();
+    expect(selectedTruckId()).toBeNull();
+  });
+
+  it('changing status filter clears the selected truck', () => {
+    truckList.set([mockTruck]);
+    selectedTruckId.set('truck_1');
+    const fixture = render();
+    const store = TestBed.inject(SelectedVehicleStore) as unknown as { clearSelection: ReturnType<typeof vi.fn> };
+
+    fixture.componentInstance.setFilterStatus('idle');
+    expect(store.clearSelection).toHaveBeenCalled();
+    expect(selectedTruckId()).toBeNull();
+  });
+
+  it('changing assignment filter clears the selected truck', () => {
+    truckList.set([mockTruck]);
+    selectedTruckId.set('truck_1');
+    const fixture = render();
+    const store = TestBed.inject(SelectedVehicleStore) as unknown as { clearSelection: ReturnType<typeof vi.fn> };
+
+    fixture.componentInstance.setFilterAssignment('assigned');
+    expect(store.clearSelection).toHaveBeenCalled();
+    expect(selectedTruckId()).toBeNull();
+  });
+
+  it('changing low-fuel filter clears the selected truck', () => {
+    truckList.set([mockTruck]);
+    selectedTruckId.set('truck_1');
+    const fixture = render();
+    const store = TestBed.inject(SelectedVehicleStore) as unknown as { clearSelection: ReturnType<typeof vi.fn> };
+
+    fixture.componentInstance.setLowFuelOnly(true);
+    expect(store.clearSelection).toHaveBeenCalled();
+    expect(selectedTruckId()).toBeNull();
+  });
+
+  it('resetFilters() clears the selected truck', () => {
+    truckList.set([mockTruck]);
+    selectedTruckId.set('truck_1');
+    const fixture = render();
+    const store = TestBed.inject(SelectedVehicleStore) as unknown as { clearSelection: ReturnType<typeof vi.fn> };
+
+    fixture.componentInstance.resetFilters();
+    expect(store.clearSelection).toHaveBeenCalled();
+    expect(selectedTruckId()).toBeNull();
+  });
+
+  it('shows "No fleet data yet" when fleet list is genuinely empty', () => {
+    truckList.set([]);
+    const fixture = render();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.fleet-item--empty:not(.fleet-item--no-match)')).not.toBeNull();
+    expect(el.textContent).toContain('No fleet data yet');
+    expect(el.querySelector('.fleet-item--no-match')).toBeNull();
+  });
+
   it('calls selectedVehicleStore.selectTruck and preventDefault on Space key press on a fleet item', () => {
     truckList.set([mockTruck]);
     const fixture = render();
