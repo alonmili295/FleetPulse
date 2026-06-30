@@ -1,2 +1,99 @@
-/* You can add global styles to this file, and also import other style files */
 @import 'leaflet/dist/leaflet.css';
+
+/* ── Design tokens ─────────────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --color-primary:       #0052cc;
+  --color-primary-hover: #0065ff;
+
+  /* Semantic */
+  --color-success:      #00875a;
+  --color-success-hover:#006644;
+  --color-success-bg:   #e3fcef;
+  --color-success-text: #006644;
+
+  --color-warning:      #ff8b00;
+  --color-warning-bg:   #fffae6;
+  --color-warning-text: #974f0c;
+
+  --color-danger:       #bf2600;
+  --color-danger-bg:    #ffebe6;
+  --color-danger-text:  #bf2600;
+
+  --color-info-bg:      #deebff;
+  --color-info-text:    #0052cc;
+
+  /* Neutrals */
+  --color-text:         #172b4d;
+  --color-text-subtle:  #5e6c84;
+  --color-text-muted:   #97a0af;
+  --color-border:       #dfe1e6;
+  --color-surface:      #ffffff;
+  --color-surface-raised:#f4f5f7;
+  --color-surface-sunken:#f0f2f5;
+
+  /* Shadows */
+  --shadow-card:      0 1px 3px rgba(9,30,66,.12), 0 0 0 1px rgba(9,30,66,.08);
+  --shadow-card-hover:0 3px 8px rgba(9,30,66,.15), 0 0 0 1px rgba(9,30,66,.10);
+
+  /* Radii */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-size-xs:   11px;
+  --font-size-sm:   12px;
+  --font-size-base: 14px;
+  --font-size-md:   16px;
+  --font-size-lg:   18px;
+  --font-size-xl:   22px;
+  --font-size-2xl:  28px;
+}
+
+/* ── Fleet map popup (global scope — Leaflet injects popup DOM outside Angular) */
+.fleet-map__popup {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  min-width: 148px;
+  line-height: 1.6;
+}
+
+.fleet-map__popup strong {
+  display: block;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fleet-map__popup div {
+  color: var(--color-text-subtle);
+}
+
+/* ── Global baseline ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background: var(--color-surface-sunken);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}

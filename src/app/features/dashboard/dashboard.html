@@ -15,6 +15,14 @@
   <section class="fleet-overview" aria-label="Fleet overview">
     <h2 class="fleet-overview__title">Fleet ({{ fleetStore.truckList().length }})</h2>
 
+    <div class="fleet-list__header" aria-hidden="true">
+      <span>Truck</span>
+      <span>Status</span>
+      <span>Speed</span>
+      <span>Fuel</span>
+      <span>Location</span>
+    </div>
+
     <ul class="fleet-list" role="list">
       @for (truck of fleetStore.truckList(); track truck.id) {
         <li class="fleet-item">
@@ -41,6 +49,13 @@
   </section>
 
   <section class="fleet-map-section" aria-label="Fleet map">
+    <div class="fleet-map-header">
+      <div class="fleet-map-header__info">
+        <h2 class="fleet-map-header__title">Fleet Map</h2>
+        <p class="fleet-map-header__subtitle">Live vehicle positions and telemetry trails</p>
+      </div>
+      <span class="fleet-map-header__meta">{{ fleetStore.truckList().length }} vehicles</span>
+    </div>
     <app-fleet-map />
   </section>
 

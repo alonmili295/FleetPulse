@@ -1,99 +1,136 @@
 .dashboard {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #172b4d;
+  padding: var(--space-lg) var(--space-md) var(--space-2xl);
 }
 
+/* ── Header ────────────────────────────────────────────────────────── */
+
 .dashboard__header {
-  border-bottom: 2px solid #0052cc;
-  padding-bottom: 16px;
-  margin-bottom: 24px;
+  display: grid;
+  grid-template-areas:
+    "title   banner"
+    "subtitle banner";
+  grid-template-columns: 1fr auto;
+  column-gap: var(--space-md);
+  row-gap: 2px;
+  align-items: start;
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-lg);
+  border-bottom: 2px solid var(--color-primary);
 }
 
 .dashboard__title {
-  font-size: 28px;
+  grid-area: title;
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
   margin: 0;
+  color: var(--color-text);
 }
 
 .dashboard__subtitle {
-  font-size: 16px;
-  color: #5e6c84;
-  margin: 4px 0 0;
-}
-
-.dashboard__phase {
-  margin: 12px 0 0;
-  padding: 8px 12px;
-  background: #fffae6;
-  border-left: 4px solid #ff8b00;
-  border-radius: 3px;
-  font-size: 13px;
-}
-
-.dashboard__sections {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.placeholder-card {
-  border: 1px solid #dfe1e6;
-  border-radius: 6px;
-  padding: 16px;
-  background: #f4f5f7;
-}
-
-.placeholder-card__title {
-  font-size: 16px;
-  margin: 0 0 6px;
-}
-
-.placeholder-card__note {
-  font-size: 13px;
-  color: #5e6c84;
-  margin: 0 0 10px;
-}
-
-.placeholder-card__status {
-  font-size: 12px;
-  color: #97a0af;
+  grid-area: subtitle;
+  font-size: var(--font-size-md);
+  color: var(--color-text-subtle);
   margin: 0;
-  font-style: italic;
 }
 
-/* ── P3: connection banner ─────────────────────────────────────────────────── */
+/* ── Connection banner ─────────────────────────────────────────────── */
 
 .banner {
-  margin-top: 12px;
-  padding: 8px 12px;
-  border-radius: 3px;
-  font-size: 13px;
-  font-weight: 500;
+  grid-area: banner;
+  align-self: center;
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .banner--degraded {
-  background: #fffae6;
-  border-left: 4px solid #ff8b00;
-  color: #172b4d;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  color: var(--color-warning-text);
 }
 
 .banner--connected {
-  background: #e3fcef;
-  border-left: 4px solid #00875a;
-  color: #172b4d;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success);
+  color: var(--color-success-text);
 }
 
-/* ── P3: fleet overview ────────────────────────────────────────────────────── */
+/* ── Section cards ─────────────────────────────────────────────────── */
 
-.fleet-overview {
-  margin-top: 24px;
+.fleet-overview,
+.fleet-map-section,
+.route-management-section {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
 }
+
+.fleet-map-section {
+  padding: 0;
+  overflow: hidden; /* clips the Leaflet map to the card's border-radius */
+}
+
+.fleet-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fleet-map-header__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fleet-map-header__title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.fleet-map-header__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-subtle);
+  margin: 0;
+}
+
+.fleet-map-header__meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Fleet overview ────────────────────────────────────────────────── */
 
 .fleet-overview__title {
-  font-size: 18px;
-  margin: 0 0 12px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0 0 var(--space-md);
+}
+
+/* ── Fleet list column headers ─────────────────────────────────────── */
+
+.fleet-list__header {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.5fr) auto 90px 60px minmax(150px, 1fr);
+  column-gap: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
 }
 
 .fleet-list {
@@ -102,63 +139,98 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .fleet-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(110px, 1.5fr) auto 90px 60px minmax(150px, 1fr);
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border: 1px solid #dfe1e6;
-  border-radius: 4px;
-  background: #fff;
-  font-size: 14px;
+  column-gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-base);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.fleet-item:hover:not(.fleet-item--empty) {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
 }
 
 .fleet-item--empty {
-  color: #97a0af;
+  grid-template-columns: 1fr;
+  color: var(--color-text-muted);
   font-style: italic;
+  border-color: transparent;
+  background: transparent;
 }
 
 .fleet-item__name {
   font-weight: 600;
-  min-width: 100px;
 }
+
+/* ── Status badges (fleet) ─────────────────────────────────────────── */
 
 .fleet-item__status {
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: #dfe1e6;
-  color: #172b4d;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
 }
 
-.fleet-item__status--active  { background: #e3fcef; color: #006644; }
-.fleet-item__status--idle    { background: #fffae6; color: #974f0c; }
-.fleet-item__status--maintenance { background: #ffebe6; color: #bf2600; }
+.fleet-item__status--active      { background: var(--color-success-bg); color: var(--color-success-text); }
+.fleet-item__status--idle        { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.fleet-item__status--maintenance { background: var(--color-danger-bg);  color: var(--color-danger-text); }
 
 .fleet-item__speed,
 .fleet-item__fuel,
 .fleet-item__location {
-  color: #5e6c84;
-  font-size: 13px;
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── P5: fleet map section ─────────────────────────────────────────────────── */
+/* ── Anomaly indicators ────────────────────────────────────────────── */
 
-.fleet-map-section {
-  margin-top: 24px;
-}
+.fleet-item__speed--error { color: var(--color-danger);       font-style: italic; }
+.fleet-item__fuel--glitch { color: var(--color-warning-text); font-style: italic; }
 
-/* ── P4: anomaly indicators ────────────────────────────────────────────────── */
+/* ── Responsive ────────────────────────────────────────────────────── */
 
-.fleet-item__speed--error {
-  color: #bf2600;
-  font-style: italic;
-}
+@media (max-width: 680px) {
+  .dashboard {
+    padding: var(--space-md) var(--space-sm) var(--space-xl);
+  }
 
-.fleet-item__fuel--glitch {
-  color: #974f0c;
-  font-style: italic;
+  .dashboard__header {
+    grid-template-areas:
+      "title   title"
+      "subtitle banner";
+    align-items: center;
+  }
+
+  .fleet-list__header {
+    display: none;
+  }
+
+  .fleet-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-sm);
+  }
+
+  .fleet-item__name   { flex: 1 1 auto; }
+  .fleet-item__status { flex: 0 0 auto; }
+  .fleet-item__speed,
+  .fleet-item__fuel   { flex: 0 0 auto; }
+  .fleet-item__location { flex: 1 1 100%; }
 }
