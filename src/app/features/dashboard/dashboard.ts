@@ -11,11 +11,12 @@ import { FleetMapComponent } from '../fleet-map/fleet-map';
 import { RouteManagementComponent } from '../route-management/route-management';
 import { VehicleDetailComponent } from '../vehicle-detail/vehicle-detail';
 import { ObservabilityPanelComponent } from '../observability/observability-panel';
+import { AnomalyDashboardComponent } from '../anomaly-dashboard/anomaly-dashboard';
 
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, FleetMapComponent, RouteManagementComponent, VehicleDetailComponent, ObservabilityPanelComponent],
+  imports: [DecimalPipe, FleetMapComponent, RouteManagementComponent, VehicleDetailComponent, ObservabilityPanelComponent, AnomalyDashboardComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })

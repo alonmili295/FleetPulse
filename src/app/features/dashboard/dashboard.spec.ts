@@ -60,7 +60,7 @@ describe('DashboardComponent', () => {
       providers: [
         { provide: FleetStore, useValue: { truckList, truckById: vi.fn(), patchTruck: vi.fn(), upsertTruck: vi.fn(), setFleet: vi.fn() } },
         { provide: ConnectionStore, useValue: { isDegraded, sse, lastHeartbeatAt, markConnected: vi.fn(), markConnecting: vi.fn(), markDisconnected: vi.fn(), markHeartbeat: vi.fn() } },
-        { provide: TelemetryStore, useValue: { latestFor: vi.fn().mockReturnValue(null), lastAcceptedTsFor: vi.fn().mockReturnValue(0), applyReading: vi.fn(), applyTrail: vi.fn(), historyFor: vi.fn().mockReturnValue([]) } },
+        { provide: TelemetryStore, useValue: { trucks: signal(new Map()), latestFor: vi.fn().mockReturnValue(null), lastAcceptedTsFor: vi.fn().mockReturnValue(0), applyReading: vi.fn(), applyTrail: vi.fn(), historyFor: vi.fn().mockReturnValue([]) } },
         { provide: TelemetryPipeline, useValue: { start: vi.fn() } },
         { provide: RouteService, useValue: { loadRoutes: vi.fn().mockReturnValue(of(undefined)), createRoute: vi.fn(), updateRoute: vi.fn(), reassignRoute: vi.fn() } },
         { provide: RoutesStore, useValue: { routeList: signal([]), isLoaded: signal(false), routeById: vi.fn(), versionFor: vi.fn(), setRoutes: vi.fn(), upsertRoute: vi.fn(), removeRoute: vi.fn() } },
@@ -239,6 +239,11 @@ describe('DashboardComponent', () => {
   it('renders the observability panel component', () => {
     const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-observability-panel')).not.toBeNull();
+  });
+
+  it('renders the anomaly dashboard component', () => {
+    const fixture = render();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-anomaly-dashboard')).not.toBeNull();
   });
 
   it('calls selectedVehicleStore.selectTruck when a fleet item is clicked', () => {

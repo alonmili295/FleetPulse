@@ -1,0 +1,64 @@
+<section class="anom-dashboard">
+  <h3 class="anom-dashboard__title">Anomaly Dashboard</h3>
+
+  <div class="anom-dashboard__counters">
+    <div class="anom-counter">
+      <span class="anom-counter__label">Anomalous Trucks</span>
+      <span class="anom-counter__value anom__total-count">{{ totalCount() }}</span>
+    </div>
+    <div class="anom-counter">
+      <span class="anom-counter__label">Speed Errors</span>
+      <span class="anom-counter__value anom__speed-count">{{ speedErrCount() }}</span>
+    </div>
+    <div class="anom-counter">
+      <span class="anom-counter__label">Fuel Glitches</span>
+      <span class="anom-counter__value anom__fuel-count">{{ fuelGlitchCount() }}</span>
+    </div>
+  </div>
+
+  @if (anomalyRows().length === 0) {
+    <p class="anom__empty">No anomalies detected</p>
+  } @else {
+    <ul class="anom__list" role="list">
+      @for (row of anomalyRows(); track row.truck.id) {
+        <li
+          class="anom__row"
+          role="button"
+          tabindex="0"
+          (click)="selectTruck(row.truck.id)"
+          (keydown)="onRowKey($event, row.truck.id)"
+        >
+          <span class="anom__row-name">{{ row.truck.name }}</span>
+          <span class="anom__row-status anom__row-status--{{ row.truck.status }}">{{ row.truck.status }}</span>
+          <span class="anom__type anom__type--{{ row.anomalyType }}">{{
+            row.anomalyType === 'speed' ? 'Speed Sensor' :
+            row.anomalyType === 'fuel'  ? 'Fuel Glitch'  : 'Both'
+          }}</span>
+          <span class="anom__row-values">
+            @if (row.reading.speedSensorError) {
+              <span class="anom__val anom__val--speed">
+                @if (row.reading.displaySpeed != null) {
+                  {{ row.reading.displaySpeed | number:'1.0-1' }} km/h
+                } @else {
+                  —
+                }
+              </span>
+            }
+            @if (row.reading.fuelGlitch) {
+              <span class="anom__val anom__val--fuel">
+                @if (row.reading.displayFuel != null) {
+                  {{ row.reading.displayFuel | number:'1.0-0' }}%
+                } @else {
+                  —
+                }
+              </span>
+            }
+          </span>
+          @if (row.reading.timestamp) {
+            <span class="anom__row-time">{{ row.reading.timestamp | date:'HH:mm:ss' }}</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>
