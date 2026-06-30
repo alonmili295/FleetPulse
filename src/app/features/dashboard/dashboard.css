@@ -65,7 +65,8 @@
 .fleet-overview,
 .fleet-map-section,
 .route-management-section,
-.observability-section {
+.observability-section,
+.anomaly-section {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);

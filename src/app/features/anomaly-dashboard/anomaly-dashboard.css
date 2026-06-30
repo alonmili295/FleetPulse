@@ -1,0 +1,177 @@
+.anom-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.anom-dashboard__title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* ── Counters ──────────────────────────────────────────────────────── */
+
+.anom-dashboard__counters {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.anom-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 110px;
+}
+
+.anom-counter__label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.anom-counter__value {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+/* ── Empty state ───────────────────────────────────────────────────── */
+
+.anom__empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+/* ── Anomaly list ──────────────────────────────────────────────────── */
+
+.anom__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.anom__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.5fr) auto auto 1fr auto;
+  align-items: center;
+  column-gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.anom__row:hover {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
+}
+
+.anom__row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Row cells ─────────────────────────────────────────────────────── */
+
+.anom__row-name {
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anom__row-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.anom__row-status--active      { background: var(--color-success-bg); color: var(--color-success-text); }
+.anom__row-status--idle        { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.anom__row-status--maintenance { background: var(--color-danger-bg);  color: var(--color-danger-text); }
+
+/* ── Anomaly type badge ─────────────────────────────────────────────── */
+
+.anom__type {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+}
+
+.anom__type--speed { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.anom__type--fuel  { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.anom__type--both  { background: var(--color-danger-bg);  color: var(--color-danger-text); }
+
+/* ── Reading values ────────────────────────────────────────────────── */
+
+.anom__row-values {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.anom__val {
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.anom__val--speed { color: var(--color-warning-text); font-style: italic; }
+.anom__val--fuel  { color: var(--color-warning-text); font-style: italic; }
+
+/* ── Timestamp ─────────────────────────────────────────────────────── */
+
+.anom__row-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+
+@media (max-width: 680px) {
+  .anom__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .anom__row-name   { flex: 1 1 auto; }
+  .anom__row-status { flex: 0 0 auto; }
+  .anom__type       { flex: 0 0 auto; }
+  .anom__row-values { flex: 1 1 100%; }
+  .anom__row-time   { flex: 0 0 auto; }
+}
