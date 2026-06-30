@@ -19,6 +19,9 @@ import { PresenceStore } from '../../domain/presence/presence.store';
 import { RouteService } from '../../domain/routes/route.service';
 import { RoutesStore } from '../../domain/routes/routes.store';
 import { AuditLog } from '../../domain/routes/audit-log';
+import { SelectedVehicleStore } from '../../domain/vehicle-selection/selected-vehicle.store';
+import { AlertsStore } from '../../domain/alerts/alerts.store';
+import { VehicleDetailService } from '../../domain/vehicle-detail/vehicle-detail.service';
 import { of } from 'rxjs';
 import type { TruckListItem } from '../../shared/models/truck.model';
 import type { SseConnectionState } from '../../domain/fleet/connection.store';
@@ -35,11 +38,21 @@ describe('DashboardComponent', () => {
   const sse = signal<SseConnectionState>('connecting');
   const isDegraded = signal(true);
   const lastHeartbeatAt = signal(0);
+  const selectedTruckId = signal<string | null>(null);
+
+  function render(): ReturnType<typeof TestBed.createComponent<DashboardComponent>> {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+    fixture.detectChanges();
+    return fixture;
+  }
 
   beforeEach(async () => {
     truckList.set([]);
     sse.set('connecting');
     isDegraded.set(true);
+    selectedTruckId.set(null);
 
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],
@@ -59,164 +72,211 @@ describe('DashboardComponent', () => {
             dispatchers: signal([]),
             activeCount: signal(0),
             wsState: signal<WsState>('disconnected'),
+            viewingByDispatcher: signal([]),
+            viewersForTruck: vi.fn().mockReturnValue([]),
             setSelf: vi.fn(), addDispatcher: vi.fn(), removeDispatcher: vi.fn(),
             setActiveCount: vi.fn(), setWsState: vi.fn(), resetPresence: vi.fn(),
+            setDispatcherViewing: vi.fn(), pruneStaleViewers: vi.fn(),
+          },
+        },
+        {
+          provide: SelectedVehicleStore,
+          useValue: {
+            selectedTruckId: selectedTruckId.asReadonly(),
+            selectTruck: vi.fn((id: string) => selectedTruckId.set(id)),
+            clearSelection: vi.fn(() => selectedTruckId.set(null)),
+          },
+        },
+        {
+          provide: AlertsStore,
+          useValue: {
+            alerts: signal([]),
+            addAlert: vi.fn(),
+            alertsForTruck: vi.fn().mockReturnValue([]),
+          },
+        },
+        {
+          provide: VehicleDetailService,
+          useValue: {
+            loadDetail: vi.fn(),
+            sendAlert: vi.fn().mockReturnValue(of({ kind: 'success' })),
+            mileageFor: vi.fn().mockReturnValue(null),
+            loadingTruckId: signal(null),
+            detailError: signal(null),
           },
         },
       ],
     }).compileComponents();
   });
 
-  it('renders the FleetPulse title and subtitle', async () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+  it('renders the FleetPulse title and subtitle', () => {
+    const fixture = render();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.dashboard__title')?.textContent).toContain('FleetPulse');
     expect(el.querySelector('.dashboard__subtitle')?.textContent).toContain('Real-Time Fleet Management Dashboard');
   });
 
-  it('shows degraded banner while connecting', async () => {
+  it('shows degraded banner while connecting', () => {
     isDegraded.set(true);
     sse.set('connecting');
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+    const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('.banner--degraded')).not.toBeNull();
   });
 
-  it('shows disconnected text in banner when SSE is disconnected', async () => {
+  it('shows disconnected text in banner when SSE is disconnected', () => {
     isDegraded.set(true);
     sse.set('disconnected');
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+    const fixture = render();
     const banner = (fixture.nativeElement as HTMLElement).querySelector('.banner--degraded');
     expect(banner?.textContent).toContain('reconnecting');
   });
 
-  it('shows connected banner when SSE is live', async () => {
+  it('shows connected banner when SSE is live', () => {
     isDegraded.set(false);
     sse.set('connected');
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+    const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('.banner--connected')).not.toBeNull();
   });
 
-  it('renders a fleet-item for each loaded truck', async () => {
+  it('renders a fleet-item for each loaded truck', () => {
     truckList.set([mockTruck]);
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
-    fixture.detectChanges();
+    const fixture = render();
     const items = (fixture.nativeElement as HTMLElement).querySelectorAll('.fleet-item:not(.fleet-item--empty)');
     expect(items.length).toBe(1);
     expect(items[0].textContent).toContain('Truck 1');
   });
 
-  it('shows empty placeholder when fleet is not yet loaded', async () => {
+  it('shows empty placeholder when fleet is not yet loaded', () => {
     truckList.set([]);
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+    const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('.fleet-item--empty')).not.toBeNull();
   });
 
-  it('live telemetry from TelemetryStore is shown instead of REST fallback values', async () => {
+  it('live telemetry from TelemetryStore is shown instead of REST fallback values', () => {
     truckList.set([mockTruck]); // REST values: speed 60, fuel 75
 
-    // Override latestFor before rendering so the template picks up live values
     const telemetryMock = TestBed.inject(TelemetryStore) as unknown as { latestFor: ReturnType<typeof vi.fn> };
     telemetryMock.latestFor.mockReturnValue({
       truckId: 'truck_1',
       location: { lat: 51.5, lng: -0.1 },
-      speed: 88,
-      heading: 90,
-      fuel: 42,
-      engineTemp: 90,
-      status: 'active',
-      timestamp: 2000,
-      displaySpeed: 88,
-      displayFuel: 42,
-      speedSensorError: false,
-      fuelGlitch: false,
+      speed: 88, heading: 90, fuel: 42, engineTemp: 90, status: 'active', timestamp: 2000,
+      displaySpeed: 88, displayFuel: 42, speedSensorError: false, fuelGlitch: false,
     });
 
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const el = fixture.nativeElement as HTMLElement;
+    const el = render().nativeElement as HTMLElement;
     expect(el.textContent).toContain('88 km/h');
     expect(el.textContent).toContain('42%');
     expect(el.textContent).not.toContain('60 km/h');
     expect(el.textContent).not.toContain('75%');
   });
 
-  it('shows — km/h when speedSensorError is true and does not display 999', async () => {
+  it('shows — km/h when speedSensorError is true and does not display 999', () => {
     truckList.set([mockTruck]);
     const telemetryMock = TestBed.inject(TelemetryStore) as unknown as { latestFor: ReturnType<typeof vi.fn> };
     telemetryMock.latestFor.mockReturnValue({
       truckId: 'truck_1',
       location: { lat: 51.5, lng: -0.1 },
       speed: 999, displaySpeed: null, speedSensorError: true,
-      heading: 90,
-      fuel: 75, displayFuel: 75, fuelGlitch: false,
+      heading: 90, fuel: 75, displayFuel: 75, fuelGlitch: false,
       engineTemp: 85, status: 'active', timestamp: 2000,
     });
 
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const el = fixture.nativeElement as HTMLElement;
+    const el = render().nativeElement as HTMLElement;
     expect(el.textContent).toContain('— km/h');
     expect(el.textContent).not.toContain('999');
   });
 
-  it('shows carried-forward fuel when fuelGlitch is true and does not display 0%', async () => {
+  it('shows carried-forward fuel when fuelGlitch is true and does not display 0%', () => {
     truckList.set([mockTruck]);
     const telemetryMock = TestBed.inject(TelemetryStore) as unknown as { latestFor: ReturnType<typeof vi.fn> };
     telemetryMock.latestFor.mockReturnValue({
       truckId: 'truck_1',
       location: { lat: 51.5, lng: -0.1 },
       speed: 60, displaySpeed: 60, speedSensorError: false,
-      heading: 90,
-      fuel: 0, displayFuel: 75, fuelGlitch: true,
+      heading: 90, fuel: 0, displayFuel: 75, fuelGlitch: true,
       engineTemp: 85, status: 'active', timestamp: 2000,
     });
 
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const el = fixture.nativeElement as HTMLElement;
+    const el = render().nativeElement as HTMLElement;
     expect(el.textContent).toContain('75%');
     expect(el.textContent).not.toContain('0%');
   });
 
-  it('calls pipeline.start() on construction', async () => {
+  it('calls pipeline.start() on construction', () => {
     const pipelineMock = TestBed.inject(TelemetryPipeline) as unknown as { start: ReturnType<typeof vi.fn> };
-    TestBed.createComponent(DashboardComponent);
+    render();
     expect(pipelineMock.start).toHaveBeenCalled();
   });
 
   it('calls presenceService.connect() on construction', () => {
     const presenceMock = TestBed.inject(PresenceService) as unknown as { connect: ReturnType<typeof vi.fn> };
-    TestBed.createComponent(DashboardComponent);
+    render();
     expect(presenceMock.connect).toHaveBeenCalled();
   });
 
-  it('renders the presence indicator in the header', async () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+  it('renders the presence indicator in the header', () => {
+    const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('.presence-indicator')).not.toBeNull();
   });
 
-  it('renders the fleet map component', async () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+  it('renders the fleet map component', () => {
+    const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-fleet-map')).not.toBeNull();
   });
 
-  it('renders the route management component', async () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
-    await fixture.whenStable();
+  it('renders the route management component', () => {
+    const fixture = render();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-route-management')).not.toBeNull();
+  });
+
+  it('renders the vehicle detail component', () => {
+    const fixture = render();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-vehicle-detail')).not.toBeNull();
+  });
+
+  it('calls selectedVehicleStore.selectTruck when a fleet item is clicked', () => {
+    truckList.set([mockTruck]);
+    const fixture = render();
+    const selectedVehicleStoreMock = TestBed.inject(SelectedVehicleStore) as unknown as { selectTruck: ReturnType<typeof vi.fn> };
+    const item = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.fleet-item:not(.fleet-item--empty)');
+    item?.click();
+    expect(selectedVehicleStoreMock.selectTruck).toHaveBeenCalledWith('truck_1');
+  });
+
+  it('applies fleet-item--selected class to the selected truck', () => {
+    truckList.set([mockTruck]);
+    selectedTruckId.set('truck_1');
+    const fixture = render();
+    const item = (fixture.nativeElement as HTMLElement).querySelector('.fleet-item:not(.fleet-item--empty)');
+    expect(item?.classList.contains('fleet-item--selected')).toBe(true);
+  });
+
+  it('calls selectedVehicleStore.selectTruck on Enter key press on a fleet item', () => {
+    truckList.set([mockTruck]);
+    const fixture = render();
+    const selectedVehicleStoreMock = TestBed.inject(SelectedVehicleStore) as unknown as { selectTruck: ReturnType<typeof vi.fn> };
+    const item = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.fleet-item:not(.fleet-item--empty)');
+    item?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(selectedVehicleStoreMock.selectTruck).toHaveBeenCalledWith('truck_1');
+  });
+
+  it('calls selectedVehicleStore.selectTruck and preventDefault on Space key press on a fleet item', () => {
+    truckList.set([mockTruck]);
+    const fixture = render();
+
+    const selectedVehicleStoreMock = TestBed.inject(SelectedVehicleStore) as unknown as {
+      selectTruck: ReturnType<typeof vi.fn>;
+    };
+
+    const item = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLElement>('.fleet-item:not(.fleet-item--empty)')!;
+
+    const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+    item.dispatchEvent(event);
+
+    expect(selectedVehicleStoreMock.selectTruck).toHaveBeenCalledWith('truck_1');
+    expect(preventDefaultSpy).toHaveBeenCalled();
   });
 });

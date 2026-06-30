@@ -1,0 +1,134 @@
+<section class="vehicle-detail">
+  @if (selectedVehicleStore.selectedTruckId() === null) {
+    <div class="vehicle-detail__empty" role="status">
+      <p>Select a truck to view details</p>
+    </div>
+  } @else if (truck()) {
+    <div class="vehicle-detail__header">
+      <h3 class="vehicle-detail__name">{{ truck()!.name }}</h3>
+      <span class="vehicle-detail__status vehicle-detail__status--{{ truck()!.status }}">{{ truck()!.status }}</span>
+      <button class="vehicle-detail__close" type="button" (click)="close()" aria-label="Close detail panel">&times;</button>
+    </div>
+
+    <div class="vehicle-detail__gauges">
+      <div class="gauge-card">
+        <div class="gauge" [style.--pct]="speedPct()" [class.gauge--error]="reading()?.speedSensorError">
+          <div class="gauge__inner">
+            @if (reading()?.speedSensorError) {
+              <span class="gauge__value gauge__value--error">—</span>
+              <span class="gauge__unit">Sensor error</span>
+            } @else {
+              <span class="gauge__value">{{ (reading()?.displaySpeed ?? truck()!.speed) | number:'1.0-0' }}</span>
+              <span class="gauge__unit">km/h</span>
+            }
+          </div>
+        </div>
+        <p class="gauge-card__label">Speed</p>
+      </div>
+
+      <div class="gauge-card">
+        <div class="gauge" [style.--pct]="fuelPct()" [class.gauge--warn]="reading()?.fuelGlitch">
+          <div class="gauge__inner">
+            <span class="gauge__value">{{ (reading()?.displayFuel ?? truck()!.fuel) | number:'1.0-0' }}%</span>
+            @if (reading()?.fuelGlitch) {
+              <span class="gauge__unit gauge__unit--est">est.</span>
+            }
+          </div>
+        </div>
+        <p class="gauge-card__label">Fuel</p>
+      </div>
+
+      <div class="gauge-card">
+        <div class="gauge" [style.--pct]="tempPct()">
+          <div class="gauge__inner">
+            <span class="gauge__value">{{ (reading()?.engineTemp ?? truck()!.engineTemp) | number:'1.0-0' }}</span>
+            <span class="gauge__unit">°C</span>
+          </div>
+        </div>
+        <p class="gauge-card__label">Engine Temp</p>
+      </div>
+    </div>
+
+    <div class="vehicle-detail__stat-row">
+      <span class="vehicle-detail__stat-label">Mileage</span>
+      @if (vehicleDetailService.loadingTruckId() === selectedVehicleStore.selectedTruckId()) {
+        <span class="vehicle-detail__stat-value vehicle-detail__stat-value--loading">Loading...</span>
+      } @else if (vehicleDetailService.detailError()) {
+        <span class="vehicle-detail__stat-error">Failed to load</span>
+      } @else if (mileage() !== null) {
+        <span class="vehicle-detail__stat-value">{{ mileage() | number:'1.0-0' }} km</span>
+      } @else {
+        <span class="vehicle-detail__stat-value">—</span>
+      }
+    </div>
+
+    <div class="vehicle-detail__route">
+      @if (route()) {
+        <div class="route-card">
+          <div class="route-card__header">
+            <span class="route-card__destination">{{ route()!.destination }}</span>
+            <span class="route-card__status route-card__status--{{ route()!.status }}">{{ route()!.status }}</span>
+          </div>
+          <span class="route-card__priority">Priority: {{ route()!.priority }}</span>
+        </div>
+      } @else {
+        <p class="vehicle-detail__no-route">No active route</p>
+      }
+    </div>
+
+    @if (viewers().length > 0) {
+      <div class="vehicle-detail__viewers">
+        <span class="vehicle-detail__viewers-label">Also viewing:</span>
+        @for (viewer of viewers(); track viewer.dispatcherId) {
+          <span class="vehicle-detail__viewer-chip">{{ viewer.label }}</span>
+        }
+      </div>
+    }
+
+    <div class="vehicle-detail__alerts">
+      <h4 class="vehicle-detail__section-title">Recent Alerts</h4>
+      <ul class="alert-list" role="list">
+        @for (alert of alerts(); track alert.id) {
+          <li class="alert-item">
+            <span class="alert-item__badge alert-item__badge--{{ alert.severity }}">{{ alert.severity }}</span>
+            <span class="alert-item__message">{{ alert.message }}</span>
+            <span class="alert-item__time">{{ alert.timestamp | date:'HH:mm:ss' }}</span>
+          </li>
+        } @empty {
+          <li class="alert-item alert-item--empty">No alerts for this truck</li>
+        }
+      </ul>
+    </div>
+
+    <form class="alert-form" (submit)="submitAlert($event)">
+      <h4 class="vehicle-detail__section-title">Send Alert</h4>
+      <textarea
+        class="alert-form__message"
+        placeholder="Enter alert message"
+        maxlength="200"
+        required
+        [value]="alertMsg()"
+        (input)="alertMsg.set($any($event.target).value)"
+        [attr.aria-invalid]="alertError() ? 'true' : null"
+      ></textarea>
+      <div class="alert-form__controls">
+        <select
+          class="alert-form__severity"
+          [value]="alertSev()"
+          (change)="alertSev.set($any($event.target).value)"
+          aria-label="Alert severity"
+        >
+          <option value="info">Info</option>
+          <option value="warning">Warning</option>
+          <option value="critical">Critical</option>
+        </select>
+        <button type="submit" class="alert-form__submit" [disabled]="!canSendAlert()">
+          {{ alertSending() ? 'Sending...' : 'Send Alert' }}
+        </button>
+      </div>
+      @if (alertError()) {
+        <p class="alert-form__error" role="alert">{{ alertError() }}</p>
+      }
+    </form>
+  }
+</section>

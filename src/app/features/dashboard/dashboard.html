@@ -32,7 +32,14 @@
 
     <ul class="fleet-list" role="list">
       @for (truck of fleetStore.truckList(); track truck.id) {
-        <li class="fleet-item">
+        <li
+          class="fleet-item"
+          [class.fleet-item--selected]="selectedVehicleStore.selectedTruckId() === truck.id"
+          role="button"
+          tabindex="0"
+          (click)="selectTruck(truck.id)"
+          (keydown)="onFleetItemKey($event, truck.id)"
+        >
           <span class="fleet-item__name">{{ truck.name }}</span>
           <span class="fleet-item__status fleet-item__status--{{ truck.status }}">{{ truck.status }}</span>
           @if (telemetryStore.latestFor(truck.id); as reading) {
@@ -53,6 +60,10 @@
         <li class="fleet-item fleet-item--empty">No fleet data yet</li>
       }
     </ul>
+  </section>
+
+  <section class="vehicle-detail-section" aria-label="Vehicle detail">
+    <app-vehicle-detail />
   </section>
 
   <section class="fleet-map-section" aria-label="Fleet map">
