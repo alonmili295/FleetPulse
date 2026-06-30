@@ -1,8 +1,8 @@
 ﻿# FleetPulse — Architecture
 
-**Status:** Design for implementation (no code yet)
-**Role:** BMAD Architect
-**Companion to:** `SPEC.md` (requirements), `docs/bmad/SERVER_ANALYSIS.md` (API truth), `docs/bmad/SERVER_INTEGRATION_PLAN.md` (setup), `mock-server/server.js` (ground truth)
+**Status:** As-built — implemented and validated. §1–§38 are the original BMAD design record; **§39 (As-Built Architecture) documents what was actually implemented and is authoritative wherever it diverges from the design.**
+**Role:** BMAD Architect (design) → Documentation Architect (as-built reconciliation)
+**Companion to:** `SPEC.md` (requirements), `docs/bmad/SERVER_ANALYSIS.md` (API truth), `docs/bmad/SERVER_INTEGRATION_PLAN.md` (setup), `mock-server/server.js` (ground truth), `README.md` (as-built feature summary)
 
 ### Source-of-truth hierarchy
 
@@ -27,10 +27,12 @@ Where this document and `server.js` disagree, **the server wins** and this docum
 | REST | Angular `HttpClient` + typed interceptors |
 | Telemetry transport | Native `EventSource` wrapped in an RxJS `Observable` |
 | Dispatcher transport | Native `WebSocket` wrapped in an RxJS `Observable` |
-| UI primitives | Angular Material + CDK |
-| Map | Leaflet (fallback: CDK-based coordinate grid) |
+| UI primitives | Custom CSS design system — **no Angular Material / CDK** (as-built; see §39) |
+| Map | Leaflet |
 | Global store | **None** — no NgRx, no Redux (see §34) |
 | Backend / cache / DB | **None** — mock server only; no Redis (see §35) |
+
+> **As-built note:** This table reflects the final implementation. The design phase initially considered Angular Material + CDK; the shipped client uses a custom CSS design system only. Where any §1–§38 reference assumes Material/CDK, dialog components, or a dedicated `MetricsStore`, see **§39** for what was actually built.
 
 ---
 
@@ -767,6 +769,115 @@ Each phase ends green (`npm test`) and leaves the app runnable.
 
 ---
 
+## 39. As-Built Architecture (Implementation Status)
+
+This section documents the architecture **as actually implemented and validated**. It is authoritative wherever it diverges from the design-phase sections above. It introduces no new design — it records what shipped.
+
+### 39.1 Layered structure (as-built)
+
+The four-layer model (`shared ← core ← domain ← features`, dependencies pointing down only) was implemented as designed. The real tree:
+
+```
+src/app/
+  shared/
+    models/        truck, telemetry, route, alert, dispatcher, sse + ws models & decoders
+    utils/         ring-buffer, json utils
+  core/
+    config/        AppConfig token + provider
+    logging/       LogService
+    errors/        AppError types
+    api/           FleetApiService, RoutesApiService, VehicleAlertApiService
+    realtime/      SseClient, WsClient (ws-client.service)
+    resilience/    CircuitBreaker, RetryPolicy
+  domain/
+    fleet/         FleetStore, ConnectionStore, FleetService
+    telemetry/     TelemetryStore, TelemetryPipeline, normalize, order-guard,
+                   batch-processor, speed-anomaly-detector, fuel-glitch-detector
+    routes/        RoutesStore, RouteService, ConflictResolver, AuditLog
+    presence/      PresenceStore, PresenceService
+    alerts/        AlertsStore
+    vehicle-detail/    VehicleDetailService
+    vehicle-selection/ SelectedVehicleStore
+    observability/     TelemetryHealthStore
+  features/
+    dashboard/         shell + fleet overview + filterable fleet view
+    fleet-map/         FleetMapComponent (Leaflet)
+    route-management/  RouteManagementComponent
+    vehicle-detail/    VehicleDetailComponent
+    observability/     ObservabilityPanelComponent
+    anomaly-dashboard/ AnomalyDashboardComponent
+```
+
+All feature components are standalone with `ChangeDetectionStrategy.OnPush` and read domain state through signals only. No feature imports `core/api` or `core/realtime` directly — transport access is always mediated by a domain service.
+
+**Divergences from the design tree (§3):** there is no separate `fleet-list` or `dispatcher-presence` feature folder (the fleet overview and presence indicator live inside `DashboardComponent`); there is no `shared/ui` component library (gauges/badges are implemented inline within their feature components); the design's `MetricsService`/`MetricsStore` is realized as `TelemetryHealthStore` plus display-only derivations; and `vehicle-selection/SelectedVehicleStore` was added as the selection source of truth.
+
+### 39.2 Data flow (REST / SSE / WS → stores → UI)
+
+**REST (read + commands):**
+`FleetApiService` → `FleetService` loads the fleet **through `CircuitBreaker`** into `FleetStore`. `RoutesApiService` → `RouteService` performs route CRUD and writes `RoutesStore` (+ `AuditLog`). `VehicleAlertApiService` sends alerts; `VehicleDetailService` loads on-demand detail/mileage. API services map HTTP to typed results only — no business logic.
+
+**SSE (telemetry):**
+`SseClient` (core/realtime) exposes a discriminated-union stream (`open | error | message`). `TelemetryPipeline` (domain) is the sole router: `normalize → orderGuard → speed/fuel detectors → TelemetryStore` (and a sanitized live-patch into `FleetStore`). Stale readings dropped by `orderGuard` increment `TelemetryHealthStore` (dropped count); connection lifecycle and heartbeat drive `ConnectionStore`.
+
+**WebSocket (presence + route/alert broadcasts):**
+`WsClient` is transport-only. `PresenceService` (domain) owns the full lifecycle and routes frames into `PresenceStore` (dispatchers, per-truck viewers), `RoutesStore`/`FleetStore` (route broadcasts), and `AlertsStore` (`truck_alert`). `fleet_reset`, `pong`, and server `error` frames are intentionally ignored.
+
+**UI:**
+`DashboardComponent` composes the fleet overview (with the filterable fleet view), `FleetMapComponent`, `RouteManagementComponent`, `VehicleDetailComponent`, `ObservabilityPanelComponent`, and `AnomalyDashboardComponent`. The signal stores are the single client source of truth; both the read path (SSE/WS) and the write path (REST responses) converge on the same store reducers.
+
+### 39.3 Route conflict handling (as-built)
+
+Optimistic locking is implemented with the `If-Match` header carrying the cached route `_version` (bare integer string). On **409**, `ConflictResolver` normalizes both server response shapes into a uniform conflict model (`currentVersion`, `yourVersion`, `lastModifiedBy`, tolerating absent fields); `RouteManagementComponent` renders this inline as a **conflict notice**, and the dispatcher can re-issue the action against the latest version. `AuditLog` records applied operations from both REST responses and WS broadcasts.
+
+Critical mutations — **reassign, complete, cancel** — are gated by an **inline confirmation step** inside `RouteManagementComponent` (`pendingAction` signal → confirm/cancel). Non-destructive transitions (e.g. `assigned → in-progress`) dispatch directly. The design's separate `confirm-dialog`/`conflict-dialog` components were not built; both interactions are inline, dependency-free UI.
+
+### 39.4 Multi-dispatcher coordination (as-built)
+
+`PresenceService` handles registration, ping scheduling, and reconnect cleanup. A key lifecycle invariant holds: `selfId` is cleared on disconnect (`resetPresence()`), so a reconnect cannot emit `viewing_truck` with a stale identity before the new `registered` frame arrives. `dispatcher_joined`/`dispatcher_left` are idempotent. Selecting a truck (via `SelectedVehicleStore`) emits `viewing_truck`; other dispatchers' selections are tracked per truck in `PresenceStore` and pruned on a stale-viewer sweep (10-second interval, 30-second TTL) so ghost viewers fade even when a leave is delayed. Presence/viewing state is kept entirely separate from route state, so collaborative-viewing churn never interferes with route mutations; WS route broadcasts keep every dispatcher's route/fleet view converged.
+
+### 39.5 Observability (as-built)
+
+There is **no separate `MetricsService`/`MetricsStore`**. `ObservabilityPanelComponent` (features/observability) is a display-only panel deriving from existing stores: SSE state + heartbeat age from `ConnectionStore`, WS state + active dispatcher count + `selfId` from `PresenceStore`, dropped stale-telemetry count from `TelemetryHealthStore`, live anomaly count, fleet size from `FleetStore`, and recent entries from `AuditLog`. `TelemetryHealthStore.incrementDropped()` is the one counter, called by `TelemetryPipeline` when `orderGuard` drops a stale reading. Observability is in-app/runtime only — it is not exported to an external monitoring backend.
+
+### 39.6 Anomaly handling (as-built)
+
+`speed-anomaly-detector` and `fuel-glitch-detector` are pure functions in `domain/telemetry`. They annotate readings with `displaySpeed`/`displayFuel` and `speedSensorError`/`fuelGlitch` flags, carrying forward the last valid value during an anomaly window. Raw anomalous sensor values (`speed: 999`, glitch `fuel: 0`) are never written to `FleetStore` or displayed. `AnomalyDashboardComponent` derives its rows **live** from `FleetStore.truckList()` joined with `TelemetryStore.trucks()` — classifying each affected truck as `speed`, `fuel`, or `both`, showing totals and per-truck rows; rows are clickable/keyboard-accessible and select the truck via `SelectedVehicleStore`. No new domain store backs the dashboard.
+
+### 39.7 Filterable fleet view — ownership (as-built)
+
+The filterable fleet view is owned entirely by `DashboardComponent` as **local UI state**: `filterText`, `filterStatus`, `filterAssignment`, and `lowFuelOnly` signals feed a `filteredTruckList` computed. No domain store is involved and `FleetStore` data is never mutated or filtered at the source. The fleet **map intentionally remains full-fleet** — filtering is a list-view concern only. Any filter change clears `SelectedVehicleStore`, so the Vehicle Detail panel resets rather than showing a hidden or irrelevant truck.
+
+### 39.8 Known trade-offs (as-built)
+
+- **Inline confirmation instead of a modal dialog component** — simpler, dependency-free, contained to `RouteManagementComponent`.
+- **Custom CSS instead of Angular Material/CDK** — smaller, more predictable dependency surface.
+- **Observability is runtime/in-app only** — derived from existing stores, not a dedicated metrics pipeline or external backend.
+- **Fleet filtering is client-side and list-only** — it filters the loaded fleet (not a server query) and does not filter the map.
+- **`fleet_reset`, `pong`, and WS `error` frames are intentionally ignored** in the current UI flow.
+- **Not implemented:** geofencing and a command-palette / keyboard-shortcut system are out of scope and were not built.
+
+### 39.9 Validation summary
+
+- **403 tests passing** across **37 test files**.
+- **Production build succeeds** — existing size-budget warnings only.
+- **`mock-server/server.js` unchanged** — verified via `git diff -- mock-server/server.js` (empty diff).
+
+### 39.10 Design-to-as-built divergence map
+
+| Design (§) | As-built |
+|------------|----------|
+| Angular Material + CDK (tech table, §10, §31) | Custom CSS design system; no Material/CDK |
+| `fleet-list` feature (§3, §9) | Fleet overview + filterable fleet view inside `DashboardComponent` |
+| `dispatcher-presence` feature (§3, §9) | Presence indicator in dashboard header; viewer chips in vehicle-detail |
+| `MetricsService` / `MetricsStore` (§6, §8, §28) | `TelemetryHealthStore` (dropped count) + display-only `ObservabilityPanelComponent`; `AnomalyDashboardComponent` derives live |
+| `confirm-dialog` / `conflict-dialog` components (§10, §20) | Inline confirmation + inline conflict notice in `RouteManagementComponent` |
+| `shared/ui` presentational components (§10) | Gauges/badges implemented inline within feature components |
+| `fleet_reset` / `ResetCoordinator` / Dev reset (§26) | Not implemented; `fleet_reset` intentionally ignored |
+| Selection store (not in §8 table) | `vehicle-selection/SelectedVehicleStore` added as selection source of truth |
+
+---
+
 ### Traceability summary
 
-Every quirk Q1–Q8 has: a server fact (SERVER_ANALYSIS §12), a SPEC requirement (FR/RM/DP), a design section here (§15–§27), and a test (T-1..T-10). Every SPEC acceptance criterion AC-1..AC-14 maps to a phase (P0–P9) and the sections that realize it. The architecture changes nothing in `mock-server/server.js` and adds no backend, NgRx, or Redis.
+Every quirk Q1–Q8 has: a server fact (SERVER_ANALYSIS §12), a SPEC requirement (FR/RM/DP), a design section here (§15–§27), and a test (T-1..T-10). Every SPEC acceptance criterion AC-1..AC-14 maps to a phase (P0–P9) and the sections that realize it. The architecture changes nothing in `mock-server/server.js` and adds no backend, NgRx, or Redis. The shipped implementation is recorded in **§39 (As-Built Architecture)**, which is authoritative wherever it diverges from the design-phase sections.

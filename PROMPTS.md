@@ -279,7 +279,7 @@ Each implementation phase followed the BMAD-style loop: **Prompt → Design prop
 - Leaflet map initialises and centres on Tel Aviv
 - Live truck positions shown as circle markers; trails render as polylines
 - All tests passing at the end of the phase
-- Production build clean, no warnings
+- Production build succeeds
 
 ---
 
@@ -383,9 +383,11 @@ Each implementation phase followed the BMAD-style loop: **Prompt → Design prop
 - `dashboard.spec.ts` was similarly upgraded to use a `render()` helper replacing all `whenStable()` patterns
 
 **Validation:**
-- 334 tests passing across 34 test files
-- Production build successful — no errors, no warnings
+- All tests passing at the end of the phase
+- Production build succeeds
 - `git diff -- mock-server/server.js` empty
+
+> Note: this is a historical checkpoint for the P9/P10 slice. The bonus phases (observability panel, anomaly dashboard, route-action confirmations, filterable fleet view) were implemented afterwards; the authoritative final counts are in **Final Validation** at the end of this document.
 
 ---
 
@@ -433,6 +435,100 @@ Before coding, propose:
 - key design decisions
 - test cases to cover
 ```
+
+---
+
+## AI-Assisted Workflow Summary
+
+FleetPulse was built with an AI-assisted workflow that kept planning, implementation, and review as distinct steps:
+
+- **BMAD for planning, spec, and architecture thinking** — server analysis, integration plan, `SPEC.md`, and `ARCHITECTURE.md` were produced and approved before implementation began.
+- **Claude Code for iterative implementation** — features were built one slice at a time, each as a focused prompt → design proposal → code → tests.
+- **Every phase was reviewed before proceeding** — generated output was inspected, corrected, and only then accepted; phases were rejected and re-prompted when something was off.
+- **The mock server was treated as read-only ground truth** — `mock-server/server.js` was never modified; the client always adapted to the server's real behaviour.
+- **Source changes were validated after each major slice** — `npm test`, `npm run build`, and `git diff -- mock-server/server.js` were run before a slice was considered complete.
+
+## Guardrails Used
+
+The same guardrails were repeated in prompts throughout the build:
+
+- **Do not modify `mock-server/server.js`** — read-only ground truth.
+- **Keep strict layering** — `shared / core / domain / features`, dependencies pointing one direction only.
+- **No Angular Material / no UI library** — custom CSS design system only.
+- **No backend changes** — no new server, datastore, or queue.
+- **No invented server behaviour** — every requirement traced to real server behaviour.
+- **Features go through domain stores/services** — UI never calls raw HTTP/SSE/WS directly.
+- **Validate every major change** — tests, production build, and the mock-server diff must be green before moving on.
+
+## Major Implementation Phases
+
+The implementation progressed through the following slices, each reviewed and validated before the next:
+
+1. Project scaffold and strict Angular setup (standalone, `OnPush`, strict TypeScript)
+2. Shared models and SSE/WS decoders
+3. REST fleet loading, 503 `Retry-After`, and `CircuitBreaker`
+4. SSE telemetry pipeline
+5. GPS batch handling (`BatchProcessor`)
+6. Out-of-order telemetry dropping (`orderGuard`)
+7. Speed 999 anomaly handling
+8. Fuel 0 glitch handling
+9. Leaflet fleet map
+10. Route management
+11. `If-Match` / 409 conflict handling
+12. Route reassignment and audit log
+13. WebSocket dispatcher presence
+14. Collaborative truck viewing via `viewing_truck`
+15. Truck alerts via REST + WS `truck_alert`
+16. Vehicle detail panel
+17. Observability panel
+18. Anomaly dashboard
+19. Critical route action confirmations (inline)
+20. Filterable fleet view
+21. Filter changes clear the selected truck so Vehicle Detail resets
+22. README and ARCHITECTURE documentation updates
+
+## Representative Prompts
+
+Representative prompt summaries (not every individual prompt):
+
+- **“Build the app in strict layers”** — scaffold Angular with `shared / core / domain / features`, enforce the one-directional dependency rule, no UI library.
+- **“Implement the SSE telemetry pipeline”** — wrap `EventSource` as a typed stream and route it through normalize → order guard → anomaly detectors into the telemetry and fleet stores.
+- **“Handle server quirks without modifying `mock-server/server.js`”** — absorb stale ordering, GPS batches, speed-999, fuel-0, 503s, and 409s purely on the client.
+- **“Add route management with optimistic locking”** — create/update/reassign routes, send `If-Match`, and resolve 409 conflicts by fetching the latest version and retrying.
+- **“Add dispatcher presence over WebSocket”** — transport-only `WsClient` plus a domain presence service owning registration, ping, reconnect cleanup, and join/leave.
+- **“Add vehicle detail and truck alerts”** — detail panel with gauges and route info; alert send via REST with idempotent merge of the WS `truck_alert` broadcast.
+- **“Add an observability panel”** — display-only runtime health derived from existing stores plus the dropped-reading counter.
+- **“Add an anomaly dashboard”** — aggregate live speed/fuel anomalies across the fleet, click-to-select, with no new domain store.
+- **“Add inline confirmations for critical route actions”** — confirm reassign/complete/cancel inline, no dialog component or library.
+- **“Add a filterable fleet view”** — dashboard-local filters for text/status/assignment/low-fuel, with result count and no-match state, clearing the selection on change.
+- **“Update documentation for final submission”** — reconcile README and ARCHITECTURE with the as-built implementation and the final validation results.
+
+## Review and Fix Cycles
+
+AI output was not accepted uncritically. It was reviewed and corrected for:
+
+- **Layer violations** — e.g. a transport client reaching into the domain layer; UI reaching for raw HTTP/SSE/WS instead of going through domain services.
+- **Validation wording** — keeping the documented results accurate and avoiding absolute claims like “no warnings”.
+- **Mock-server immutability** — confirming `git diff -- mock-server/server.js` stayed empty after every slice.
+- **Stale test counts** — replacing outdated numbers with the current verified counts.
+- **Build-warning wording** — describing the production build as succeeding with existing size-budget warnings rather than claiming a clean build.
+- **Ensuring UI features did not change domain/server behaviour** — e.g. the filterable fleet view is dashboard-local and never mutates `FleetStore`.
+- **Making README match the submission requirements** — setup, architecture/data flow, decisions/trade-offs, conflict handling, known limitations, and future work.
+- **Making ARCHITECTURE distinguish design vs as-built** — an authoritative as-built section reconciling the design record with what shipped.
+
+## Final Validation
+
+- **403 tests passing** across **37 test files**
+- **Production build succeeds** — existing size-budget warnings only
+- **`mock-server/server.js` unchanged** — verified via `git diff -- mock-server/server.js` (empty diff)
+
+## What AI Was Not Used For
+
+- **AI did not modify the mock server** — `mock-server/server.js` was never changed.
+- **AI did not add a backend** — no server, datastore, queue, or cache was introduced.
+- **AI did not bypass validation** — tests, build, and the mock-server diff gated every major slice.
+- **AI suggestions were reviewed before acceptance** — nothing was merged unread, and several outputs were rejected and corrected.
+- **Final documentation was reconciled with the actual implementation** — README and ARCHITECTURE describe what was built, not an aspirational design.
 
 ---
 
