@@ -153,6 +153,13 @@
   background: var(--color-surface);
   font-size: var(--font-size-base);
   transition: background 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+.fleet-item--selected {
+  background: var(--color-surface-raised);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
 .fleet-item:hover:not(.fleet-item--empty) {
@@ -166,6 +173,17 @@
   font-style: italic;
   border-color: transparent;
   background: transparent;
+  cursor: default;
+}
+
+/* ── Vehicle detail section ────────────────────────────────────────── */
+
+.vehicle-detail-section {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
 }
 
 .fleet-item__name {
