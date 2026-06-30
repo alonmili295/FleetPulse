@@ -518,7 +518,7 @@ AI output was not accepted uncritically. It was reviewed and corrected for:
 
 ## Final Validation
 
-- **403 tests passing** across **37 test files**
+- **408 tests passing** across **37 test files**
 - **Production build succeeds** — existing size-budget warnings only
 - **`mock-server/server.js` unchanged** — verified via `git diff -- mock-server/server.js` (empty diff)
 
