@@ -1,4 +1,6 @@
-// shared/models — WebSocket message discriminated unions from SERVER_ANALYSIS §8; used by P6 (WebSocketClient, PresenceStore), P5 (RoutesStore). No socket lifecycle or send queue here.
+// shared/models — WebSocket message discriminated unions; used by WsClient (core), PresenceStore (domain). No socket lifecycle or send queue here.
+
+export type WsState = 'disconnected' | 'connecting' | 'connected';
 
 import type { Route } from './route.model';
 import type { Alert } from './alert.model';

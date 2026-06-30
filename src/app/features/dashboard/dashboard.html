@@ -10,6 +10,13 @@
     } @else {
       <div class="banner banner--connected" role="status">Live</div>
     }
+
+    <span class="presence-indicator" aria-label="WebSocket status">
+      <span class="presence-indicator__dot presence-indicator__dot--{{ presenceStore.wsState() }}"></span>
+      @if (presenceStore.activeCount() > 0) {
+        <span class="presence-indicator__count">{{ presenceStore.activeCount() }}</span>
+      }
+    </span>
   </header>
 
   <section class="fleet-overview" aria-label="Fleet overview">

@@ -9,10 +9,10 @@
 .dashboard__header {
   display: grid;
   grid-template-areas:
-    "title   banner"
-    "subtitle banner";
-  grid-template-columns: 1fr auto;
-  column-gap: var(--space-md);
+    "title    banner presence"
+    "subtitle banner presence";
+  grid-template-columns: 1fr auto auto;
+  column-gap: var(--space-sm);
   row-gap: 2px;
   align-items: start;
   padding-bottom: var(--space-md);
@@ -199,6 +199,34 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Presence indicator ────────────────────────────────────────────── */
+
+.presence-indicator {
+  grid-area: presence;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  align-self: center;
+}
+
+.presence-indicator__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.presence-indicator__dot--connected    { background: var(--color-success); }
+.presence-indicator__dot--connecting   { background: var(--color-warning); }
+.presence-indicator__dot--disconnected { background: var(--color-text-muted); }
+
+.presence-indicator__count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Anomaly indicators ────────────────────────────────────────────── */
 
 .fleet-item__speed--error { color: var(--color-danger);       font-style: italic; }
@@ -215,7 +243,12 @@
     grid-template-areas:
       "title   title"
       "subtitle banner";
+    grid-template-columns: 1fr auto;
     align-items: center;
+  }
+
+  .presence-indicator {
+    display: none;
   }
 
   .fleet-list__header {
