@@ -8,6 +8,7 @@ import { FleetService } from '../fleet/fleet.service';
 import { FleetStore } from '../fleet/fleet.store';
 import { ConnectionStore } from '../fleet/connection.store';
 import { TelemetryStore } from './telemetry.store';
+import { TelemetryHealthStore } from '../observability/telemetry-health.store';
 import { LogService } from '../../core/logging/log.service';
 import type { TruckListItem } from '../../shared/models/truck.model';
 import type { RawReading } from '../../shared/models/telemetry.model';
@@ -50,6 +51,7 @@ describe('TelemetryPipeline', () => {
     markDisconnected: ReturnType<typeof vi.fn>;
     markHeartbeat: ReturnType<typeof vi.fn>;
   };
+  let healthStoreSpy: { incrementDropped: ReturnType<typeof vi.fn> };
   let logSpy: {
     warn: ReturnType<typeof vi.fn>;
     error: ReturnType<typeof vi.fn>;
@@ -61,6 +63,7 @@ describe('TelemetryPipeline', () => {
     events$ = new Subject<SseClientEvent>();
     fleetServiceSpy = { load: vi.fn().mockReturnValue(of([mockTruck])) };
     fleetStoreSpy = { setFleet: vi.fn(), patchTruck: vi.fn() };
+    healthStoreSpy = { incrementDropped: vi.fn() };
     telemetryStoreSpy = {
       applyReading: vi.fn(),
       applyTrail: vi.fn(),
@@ -83,6 +86,7 @@ describe('TelemetryPipeline', () => {
         { provide: FleetStore, useValue: fleetStoreSpy },
         { provide: ConnectionStore, useValue: connectionStoreSpy },
         { provide: TelemetryStore, useValue: telemetryStoreSpy },
+        { provide: TelemetryHealthStore, useValue: healthStoreSpy },
         { provide: LogService, useValue: logSpy },
       ],
     });
@@ -196,6 +200,40 @@ describe('TelemetryPipeline', () => {
     events$.next({ kind: 'message', message: { type: 'gps_batch', truckId: 'truck_1', readings } });
     expect(telemetryStoreSpy.applyTrail).not.toHaveBeenCalled();
     expect(fleetStoreSpy.patchTruck).not.toHaveBeenCalled();
+  });
+
+  // ── unknown message ──────────────────────────────────────────────────────────
+
+  // ── TelemetryHealthStore integration ────────────────────────────────────────
+
+  it('stale telemetry reading increments TelemetryHealthStore droppedCount', () => {
+    telemetryStoreSpy.lastAcceptedTsFor.mockReturnValue(2000);
+    const raw = makeRawReading({ timestamp: 500 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    expect(healthStoreSpy.incrementDropped).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepted telemetry reading does not increment TelemetryHealthStore droppedCount', () => {
+    const raw = makeRawReading({ timestamp: 1001 });
+    events$.next({ kind: 'message', message: { type: 'telemetry', readings: [raw], timestamp: Date.now() } });
+    expect(healthStoreSpy.incrementDropped).not.toHaveBeenCalled();
+  });
+
+  it('all-stale gps_batch increments TelemetryHealthStore by reading count', () => {
+    telemetryStoreSpy.lastAcceptedTsFor.mockReturnValue(9999);
+    const readings = [makeRawReading({ timestamp: 500 }), makeRawReading({ timestamp: 600 })];
+    events$.next({ kind: 'message', message: { type: 'gps_batch', truckId: 'truck_1', readings } });
+    expect(healthStoreSpy.incrementDropped).toHaveBeenCalledWith(2);
+  });
+
+  it('partially stale gps_batch increments TelemetryHealthStore only for dropped readings', () => {
+    telemetryStoreSpy.lastAcceptedTsFor.mockReturnValue(1000);
+    const readings = [
+      makeRawReading({ timestamp: 500 }),  // stale (500 <= 1000)
+      makeRawReading({ timestamp: 2000 }), // fresh
+    ];
+    events$.next({ kind: 'message', message: { type: 'gps_batch', truckId: 'truck_1', readings } });
+    expect(healthStoreSpy.incrementDropped).toHaveBeenCalledWith(1);
   });
 
   // ── unknown message ──────────────────────────────────────────────────────────

@@ -10,11 +10,12 @@ import { SelectedVehicleStore } from '../../domain/vehicle-selection/selected-ve
 import { FleetMapComponent } from '../fleet-map/fleet-map';
 import { RouteManagementComponent } from '../route-management/route-management';
 import { VehicleDetailComponent } from '../vehicle-detail/vehicle-detail';
+import { ObservabilityPanelComponent } from '../observability/observability-panel';
 
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, FleetMapComponent, RouteManagementComponent, VehicleDetailComponent],
+  imports: [DecimalPipe, FleetMapComponent, RouteManagementComponent, VehicleDetailComponent, ObservabilityPanelComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
