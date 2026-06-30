@@ -40,3 +40,10 @@ export interface PatchRouteBody {
 export interface ReassignRouteBody {
   readonly newTruckId: TruckId;
 }
+
+/** Fully-normalized 409 conflict detail — all fields always defined after ConflictResolver applies fallbacks. */
+export interface ConflictDetail {
+  readonly currentVersion: number;
+  readonly yourVersion: number;
+  readonly lastModifiedBy: string;
+}

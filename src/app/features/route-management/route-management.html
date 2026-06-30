@@ -1,0 +1,128 @@
+<section class="route-management">
+  <div class="route-management__header">
+    <h2 class="route-management__title">Route Management</h2>
+    <button class="route-management__load-btn" (click)="loadRoutes()">Load Routes</button>
+  </div>
+
+  @if (routesStore.isLoaded()) {
+    <div class="create-route">
+      <h3 class="create-route__title">Assign New Route</h3>
+      <div class="create-route__form">
+        <select
+          class="create-route__truck-select"
+          [value]="newTruckId()"
+          (change)="newTruckId.set($any($event.target).value)"
+        >
+          <option value="">Select truck</option>
+          @for (truck of availableTrucks(); track truck.id) {
+            <option [value]="truck.id">{{ truck.name }}</option>
+          }
+        </select>
+        <input
+          class="create-route__destination-input"
+          type="text"
+          placeholder="Destination"
+          [value]="newDestination()"
+          (input)="newDestination.set($any($event.target).value)"
+        />
+        <select
+          class="create-route__priority-select"
+          [value]="newPriority()"
+          (change)="newPriority.set($any($event.target).value)"
+        >
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="low">Low</option>
+        </select>
+        <input
+          class="create-route__notes-input"
+          type="text"
+          placeholder="Notes (optional)"
+          [value]="newNotes()"
+          (input)="newNotes.set($any($event.target).value)"
+        />
+        <button
+          class="create-route__submit-btn"
+          (click)="createRoute()"
+          [disabled]="!newTruckId() || !newDestination()"
+        >
+          Create Route
+        </button>
+      </div>
+      @if (createError()) {
+        <p class="create-route__error">{{ createError() }}</p>
+      }
+    </div>
+
+    <ul class="route-list">
+      @for (route of routesStore.routeList(); track route.id) {
+        <li class="route-item">
+          <div class="route-item__info">
+            <span class="route-item__destination">{{ route.destination }}</span>
+            <span class="route-item__status route-item__status--{{ route.status }}">{{ route.status }}</span>
+            <span class="route-item__truck">{{ truckName(route.truckId) }}</span>
+            <span class="route-item__version">v{{ route._version }}</span>
+          </div>
+          <div class="route-item__actions">
+            <select #statusSelect>
+              @for (s of statuses; track s) {
+                <option [value]="s" [selected]="s === route.status">{{ s }}</option>
+              }
+            </select>
+            <button class="route-item__update-btn" (click)="updateStatus(route.id, statusSelect.value)">
+              Update
+            </button>
+            <select #reassignSelect>
+              <option value="">Reassign to...</option>
+              @for (truck of availableTrucksForReassign(route.truckId); track truck.id) {
+                <option [value]="truck.id">{{ truck.name }}</option>
+              }
+            </select>
+            <button
+              class="route-item__reassign-btn"
+              (click)="reassign(route.id, reassignSelect.value)"
+              [disabled]="!reassignSelect.value"
+            >
+              Reassign
+            </button>
+          </div>
+          @if (getLastResult(route.id); as result) {
+            @if (result.kind === 'conflict') {
+              <div class="conflict-notice">
+                Version conflict: server is at v{{ result.conflict.currentVersion }},
+                yours was v{{ result.conflict.yourVersion }},
+                last modified by {{ result.conflict.lastModifiedBy }}
+              </div>
+            }
+            @if (result.kind === 'error') {
+              <div class="error-notice">{{ result.error.message }}</div>
+            }
+          }
+        </li>
+      } @empty {
+        <li class="route-item route-item--empty">No routes assigned yet</li>
+      }
+    </ul>
+  } @else {
+    <p class="route-management__empty">No routes loaded. Click Load Routes to fetch.</p>
+  }
+
+  <div class="audit-log">
+    <button class="audit-log__toggle" (click)="showAuditLog.set(!showAuditLog())">
+      {{ showAuditLog() ? 'Hide' : 'Show' }} Audit Log ({{ auditLog.entries().length }})
+    </button>
+    @if (showAuditLog()) {
+      <ul class="audit-log__list">
+        @for (entry of auditLog.entries().slice(0, 10); track entry.timestamp) {
+          <li class="audit-log__entry" [class.audit-log__entry--conflict]="entry.action === 'conflict'">
+            <span class="audit-log__action">{{ entry.action }}</span>
+            <span class="audit-log__route">{{ entry.routeId }}</span>
+            <span class="audit-log__detail">{{ entry.detail }}</span>
+          </li>
+        } @empty {
+          <li class="audit-log__empty">No activity recorded</li>
+        }
+      </ul>
+    }
+  </div>
+</section>

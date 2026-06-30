@@ -14,6 +14,10 @@ import { FleetStore } from '../../domain/fleet/fleet.store';
 import { ConnectionStore } from '../../domain/fleet/connection.store';
 import { TelemetryStore } from '../../domain/telemetry/telemetry.store';
 import { TelemetryPipeline } from '../../domain/telemetry/telemetry-pipeline';
+import { RouteService } from '../../domain/routes/route.service';
+import { RoutesStore } from '../../domain/routes/routes.store';
+import { AuditLog } from '../../domain/routes/audit-log';
+import { of } from 'rxjs';
 import type { TruckListItem } from '../../shared/models/truck.model';
 import type { SseConnectionState } from '../../domain/fleet/connection.store';
 
@@ -41,6 +45,9 @@ describe('DashboardComponent', () => {
         { provide: ConnectionStore, useValue: { isDegraded, sse, lastHeartbeatAt, markConnected: vi.fn(), markConnecting: vi.fn(), markDisconnected: vi.fn(), markHeartbeat: vi.fn() } },
         { provide: TelemetryStore, useValue: { latestFor: vi.fn().mockReturnValue(null), lastAcceptedTsFor: vi.fn().mockReturnValue(0), applyReading: vi.fn(), applyTrail: vi.fn(), historyFor: vi.fn().mockReturnValue([]) } },
         { provide: TelemetryPipeline, useValue: { start: vi.fn() } },
+        { provide: RouteService, useValue: { loadRoutes: vi.fn().mockReturnValue(of(undefined)), createRoute: vi.fn(), updateRoute: vi.fn(), reassignRoute: vi.fn() } },
+        { provide: RoutesStore, useValue: { routeList: signal([]), isLoaded: signal(false), routeById: vi.fn(), versionFor: vi.fn(), setRoutes: vi.fn(), upsertRoute: vi.fn(), removeRoute: vi.fn() } },
+        { provide: AuditLog, useValue: { entries: signal([]), append: vi.fn() } },
       ],
     }).compileComponents();
   });
@@ -178,5 +185,11 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-fleet-map')).not.toBeNull();
+  });
+
+  it('renders the route management component', async () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-route-management')).not.toBeNull();
   });
 });
