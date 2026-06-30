@@ -18,6 +18,10 @@ The application connects to the provided read-only mock server to display live v
 | P7 | UI polish — CSS design system, responsive layout |
 | P8 | WebSocket dispatcher presence and route broadcast handling |
 | P9/P10 | Vehicle detail panel, dispatcher viewing indicators, `viewing_truck`, truck alert sending and `truck_alert` delivery |
+| Bonus | Observability panel — SSE/WS health, heartbeat age, dropped-reading count, audit feed |
+| Bonus | Anomaly dashboard — aggregated speed-sensor and fuel-glitch anomalies |
+| Bonus | Critical route action confirmations — inline confirmation for reassign, complete, cancel |
+| Bonus | Filterable fleet view — text/status/assignment/low-fuel filters, reset, result count, no-match state |
 
 ## Architecture
 
@@ -77,6 +81,35 @@ Raw anomalous sensor values are never written to `FleetStore` or displayed in th
 
 **Dispatcher presence and viewing** — WebSocket presence indicator in the header (dot colour reflects connection state, active dispatcher count). When viewing a truck, other dispatchers who are also viewing the same truck appear as labelled chips in the detail panel. Viewer list pruned every 10 seconds.
 
+**Observability panel** — runtime health panel showing SSE/WS connection state, heartbeat age, active dispatcher count, dropped stale telemetry count, anomaly count, fleet size, and recent audit events.
+
+**Anomaly dashboard** — fleet-wide view of active speed-sensor errors and fuel glitches. Rows are clickable and keyboard-accessible, and selecting an anomaly focuses the matching truck in the vehicle detail panel.
+
+**Critical route action confirmations** — inline confirmation step before critical route changes: reassignment, completion, and cancellation. Non-critical status changes remain direct.
+
+**Filterable fleet view** — client-side filters for truck name/ID search, status, assignment state, and low-fuel trucks below 25%. The view shows a live “showing X of Y” count, a no-match empty state, and clears the selected truck whenever filters change so the Vehicle Detail panel resets instead of showing a hidden or irrelevant truck.
+
+## Key Technical Decisions and Trade-offs
+
+- **Angular standalone components with `OnPush` and signals** for stable, fine-grained UI and domain state — synchronous reads in templates, no NgModule ceremony.
+- **RxJS at the transport boundaries** for HTTP/SSE/WS streams (retry, backoff, reconnect, `takeUntilDestroyed`); results are pushed into signals at the store edge.
+- **Strict layering: `shared / core / domain / features`** with a one-directional dependency rule (`features → domain → core → shared`).
+- **Clear layer ownership** — core owns infrastructure only (transports, HTTP, resilience), domain owns business orchestration (stores, anomaly classification, locking, presence), and features render UI only.
+- **Custom CSS instead of Angular Material** to keep dependencies small and predictable, with a design-system variable set in `styles.css`.
+- **FleetMap stays full-fleet based even when the fleet list is filtered** — filtering is a list-view concern; hiding map markers would obscure operational awareness.
+- **Filter state is dashboard-local** and clears `SelectedVehicleStore` on every change, so the Vehicle Detail panel resets rather than showing a hidden or irrelevant truck.
+- **Circuit breaker scoped to fleet loading only** — `getTruck` bypasses it so a single detail lookup is never blocked by a degraded fleet-list endpoint.
+- **Alert deduplication by `alert.id`** so the REST 201 response and the WebSocket `truck_alert` broadcast merge into a single entry safely.
+
+## Multi-dispatcher Conflict Handling
+
+- **Route update conflicts use optimistic locking** via the `If-Match` header and explicit 409 conflict recovery.
+- **On 409, the latest server state is fetched** and the route action can retry against the latest version, with the conflict surfaced to the dispatcher (who changed it, version delta).
+- **Reassign, complete, and cancel are guarded by an inline confirmation** step before any mutation is dispatched.
+- **WebSocket route broadcasts** (`route_assigned` / `route_updated` / `route_reassigned`) update local route and fleet state so all dispatchers converge on the same view.
+- **Dispatcher presence/viewing state is tracked separately from route state**, so collaborative-viewing churn never interferes with route mutations.
+- **Stale viewer cleanup** prunes viewers on a TTL, preventing ghost viewers after delayed or dropped disconnects.
+
 ## How to Run
 
 Install dependencies:
@@ -120,9 +153,28 @@ The mock server does not need to be running for tests.
 
 ## Validation
 
-- **334 tests passing** across 34 test files
-- **Production build successful** — no errors, no warnings (main bundle 470 kB / 121 kB gzipped)
+- **403 tests passing** across 37 test files
+- **Production build succeeds** — existing size-budget warnings only
 - **`mock-server/server.js` unchanged** — verified via `git diff -- mock-server/server.js` (empty diff)
+
+## Known Issues and Limitations
+
+- Fleet filtering is **client-side only** — it filters the already-loaded fleet, not a server query.
+- Filtering the list **does not filter the map**; the map intentionally remains full-fleet.
+- **No geofencing** implementation.
+- **No command palette / keyboard shortcut** system.
+- **Existing Angular size-budget warnings** remain in the production build.
+- **Observability is in-app/runtime only**, not exported to an external monitoring backend.
+
+## Improvements With More Time
+
+- Map focus on a double-clicked fleet row.
+- Geofencing zones and alerts.
+- External observability / exported metrics.
+- More advanced route table sorting and filtering.
+- E2E tests for real multi-dispatcher sessions.
+- Persisted dispatcher identity / session support.
+- More detailed latency and events-per-second metrics.
 
 ## Notes
 
