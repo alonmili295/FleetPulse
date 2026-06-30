@@ -63,29 +63,69 @@
             <span class="route-item__truck">{{ truckName(route.truckId) }}</span>
             <span class="route-item__version">v{{ route._version }}</span>
           </div>
-          <div class="route-item__actions">
-            <select #statusSelect>
-              @for (s of statuses; track s) {
-                <option [value]="s" [selected]="s === route.status">{{ s }}</option>
-              }
-            </select>
-            <button class="route-item__update-btn" (click)="updateStatus(route.id, statusSelect.value)">
-              Update
-            </button>
-            <select #reassignSelect>
-              <option value="">Reassign to...</option>
-              @for (truck of availableTrucksForReassign(route.truckId); track truck.id) {
-                <option [value]="truck.id">{{ truck.name }}</option>
-              }
-            </select>
-            <button
-              class="route-item__reassign-btn"
-              (click)="reassign(route.id, reassignSelect.value)"
-              [disabled]="!reassignSelect.value"
-            >
-              Reassign
-            </button>
-          </div>
+          @if (pendingAction(); as action) {
+            @if (action.routeId === route.id) {
+              <div class="confirm-bar" role="alert">
+                <span class="confirm-bar__message">
+                  @if (action.kind === 'reassign') {
+                    Reassign route to {{ truckName(action.newTruckId) }}?
+                  } @else {
+                    Mark route as {{ action.status }}?
+                  }
+                </span>
+                <button class="confirm-bar__confirm-btn" (click)="confirmPending()">Confirm</button>
+                <button class="confirm-bar__cancel-btn" (click)="cancelPending()">Cancel</button>
+              </div>
+            } @else {
+              <div class="route-item__actions">
+                <select #statusSelect>
+                  @for (s of statuses; track s) {
+                    <option [value]="s" [selected]="s === route.status">{{ s }}</option>
+                  }
+                </select>
+                <button class="route-item__update-btn" (click)="requestStatus(route.id, statusSelect.value)">
+                  Update
+                </button>
+                <select #reassignSelect>
+                  <option value="">Reassign to...</option>
+                  @for (truck of availableTrucksForReassign(route.truckId); track truck.id) {
+                    <option [value]="truck.id">{{ truck.name }}</option>
+                  }
+                </select>
+                <button
+                  class="route-item__reassign-btn"
+                  (click)="requestReassign(route.id, reassignSelect.value)"
+                  [disabled]="!reassignSelect.value"
+                >
+                  Reassign
+                </button>
+              </div>
+            }
+          } @else {
+            <div class="route-item__actions">
+              <select #statusSelect>
+                @for (s of statuses; track s) {
+                  <option [value]="s" [selected]="s === route.status">{{ s }}</option>
+                }
+              </select>
+              <button class="route-item__update-btn" (click)="requestStatus(route.id, statusSelect.value)">
+                Update
+              </button>
+              <select #reassignSelect>
+                <option value="">Reassign to...</option>
+                @for (truck of availableTrucksForReassign(route.truckId); track truck.id) {
+                  <option [value]="truck.id">{{ truck.name }}</option>
+                }
+              </select>
+              <button
+                class="route-item__reassign-btn"
+                (click)="requestReassign(route.id, reassignSelect.value)"
+                [disabled]="!reassignSelect.value"
+              >
+                Reassign
+              </button>
+            </div>
+          }
           @if (getLastResult(route.id); as result) {
             @if (result.kind === 'conflict') {
               <div class="conflict-notice">

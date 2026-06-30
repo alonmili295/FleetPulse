@@ -5,6 +5,10 @@ import { AuditLog } from '../../domain/routes/audit-log';
 import { FleetStore } from '../../domain/fleet/fleet.store';
 import type { RouteStatus } from '../../shared/models/route.model';
 
+export type PendingRouteAction =
+  | { readonly routeId: string; readonly kind: 'reassign'; readonly newTruckId: string }
+  | { readonly routeId: string; readonly kind: 'status'; readonly status: RouteStatus };
+
 @Component({
   selector: 'app-route-management',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,6 +30,7 @@ export class RouteManagementComponent {
   readonly newNotes = signal('');
   readonly showAuditLog = signal(false);
   readonly createError = signal<string | null>(null);
+  readonly pendingAction = signal<PendingRouteAction | null>(null);
 
   readonly #lastResults = signal(new Map<string, RouteOpResult>());
 
@@ -90,6 +95,35 @@ export class RouteManagementComponent {
     this.routeService.reassignRoute(routeId, { newTruckId }).subscribe(result => {
       this.setLastResult(routeId, result);
     });
+  }
+
+  requestReassign(routeId: string, newTruckId: string): void {
+    if (!newTruckId) return;
+    this.pendingAction.set({ kind: 'reassign', routeId, newTruckId });
+  }
+
+  requestStatus(routeId: string, statusValue: string): void {
+    const status = statusValue as RouteStatus;
+    if (status === 'completed' || status === 'cancelled') {
+      this.pendingAction.set({ kind: 'status', routeId, status });
+    } else {
+      this.updateStatus(routeId, statusValue);
+    }
+  }
+
+  confirmPending(): void {
+    const action = this.pendingAction();
+    if (!action) return;
+    if (action.kind === 'reassign') {
+      this.reassign(action.routeId, action.newTruckId);
+    } else {
+      this.updateStatus(action.routeId, action.status);
+    }
+    this.pendingAction.set(null);
+  }
+
+  cancelPending(): void {
+    this.pendingAction.set(null);
   }
 
   private setLastResult(routeId: string, result: RouteOpResult): void {
