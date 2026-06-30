@@ -1,4 +1,4 @@
-﻿# PROMPTS.md
+# PROMPTS.md
 
 ## Overview
 
@@ -283,6 +283,112 @@ Each implementation phase followed the BMAD-style loop: **Prompt → Design prop
 
 ---
 
+## P6 — Route Management
+
+**Goal:** Let dispatchers create, edit, reassign, and cancel routes from the dashboard. Handle optimistic locking (409) and maintenance-truck blocking.
+
+**How Claude was used:**
+- Design `RouteManagementComponent` and `RouteService` with full CRUD flow
+- Implement `AuditLog` signal store for client-side operation history
+- Generate optimistic-lock conflict resolution: fetch latest version, merge, retry
+- Implement `ConflictResolver` as a pure function; route status badge CSS
+
+**Constraints:**
+- `RouteManagementComponent` is UI composition only — no direct HTTP calls
+- Route status strings use hyphens: `'in-progress'`, not `'in_progress'`
+- Maintenance trucks may not receive new route assignments (server enforces; client validates)
+- No WebSocket, alerts, vehicle detail, or mock-server changes
+
+**Review notes:**
+- An early draft used `'in_progress'` (underscore); corrected to `'in-progress'` to match the server contract exactly
+- `ConflictResolver` was kept as a pure function to keep it testable without Angular
+
+**Validation:**
+- Tests passing, build clean
+
+---
+
+## P7 — UI Polish
+
+**Goal:** Apply a cohesive design system across all existing components.
+
+**How Claude was used:**
+- Define CSS custom properties (`--color-*`, `--space-*`, `--font-size-*`, `--radius-*`, `--shadow-*`) in `styles.css`
+- Apply consistent status badges, card layouts, connection banners, and responsive breakpoints
+- Improve dashboard layout and fleet-list column grid
+
+**Constraints:**
+- No Angular Material or any UI library — custom CSS only
+- No new features, no application logic changes, no mock-server changes
+
+**Validation:**
+- Visual review of all sections; tests passing, build clean
+
+---
+
+## P8 — WebSocket Dispatcher Presence and Route Broadcasts
+
+**Goal:** Connect the WebSocket and handle the full dispatcher presence lifecycle and route-change broadcasts from the server.
+
+**How Claude was used:**
+- Design `WsClient` as a pure transport (`send` / `messages$` / `state` signal)
+- Design `PresenceService` lifecycle handling for registration, ping, reconnect cleanup, dispatcher join/leave, and route broadcasts
+- Implement `PresenceStore` with `selfId`, dispatcher list, active count, WS state
+- Handle `registered`, `dispatcher_joined`, `dispatcher_left`, `route_assigned`, `route_updated`, `route_reassigned` messages
+- Add WebSocket presence indicator to the dashboard header
+- Generate comprehensive lifecycle tests
+
+**Constraints:**
+- `WsClient` is transport-only — no domain logic
+- `PresenceService` owns all message dispatch; no feature component sends WS messages
+- `fleet_reset`, `pong`, and server error frames intentionally ignored
+- No vehicle detail, dispatcher viewing, truck alerts, or mock-server changes
+
+**Validation:**
+- Tests passing, build clean
+
+---
+
+## P9/P10 — Vehicle Detail Panel, Dispatcher Viewing, and Truck Alerts
+
+**Goal:** Add a vehicle detail panel that opens when a fleet item is clicked, shows live gauges and route info, displays other dispatchers currently viewing the same truck, and allows sending truck alerts.
+
+**How Claude was used:**
+- Design `SelectedVehicleStore`, `AlertsStore`, `VehicleDetailService`, `VehicleAlertApiService` as new domain/core units
+- Extend `PresenceStore` with `DispatcherViewing`, `viewersForTruck()`, `pruneStaleViewers()` (10 s interval, 30 s TTL)
+- Extend `PresenceService` with `viewing_truck` effect, stale-selfId lifecycle fix, `truck_alert` routing
+- Implement `VehicleDetailComponent` with CSS conic-gradient gauges, mileage loading, route card, alert history, and alert form
+- Wire `DashboardComponent` to inject `SelectedVehicleStore`, render `app-vehicle-detail`, handle click and keyboard selection on fleet items
+
+**Critical design decisions:**
+- `selfId` must be cleared on WS disconnect (`resetPresence()`) so a reconnect cannot send `viewing_truck` before the new `registered` arrives — the stale-selfId bug
+- `lastSentViewingTruckId` reset *before* `setSelf()` in the `registered` handler to avoid an Angular effect scheduling race
+- `detailSub?.unsubscribe()` at the start of `loadDetail()` cancels in-flight HTTP requests on truck change
+- `AlertsStore` deduplicates by `alert.id` — REST 201 and WS broadcast both arrive; the second is dropped
+- `canSendAlert` computed: `alertMsg().trim().length > 0 && !alertSending()` — submit button disabled when empty or whitespace
+
+**Constraints:**
+- `WsClient` stays transport-only; no `viewing_truck` logic inside it
+- All alert HTTP logic stays in `VehicleAlertApiService`; `VehicleDetailComponent` never calls `HttpClient` directly
+- `Dashboard` calls `selectedVehicleStore.selectTruck(id)` only; it does not send WS messages or load vehicle detail
+- Route status string: `'in-progress'` (hyphen)
+- No innerHTML with server data
+- No mock-server changes
+
+**Review notes and refinements (multi-round):**
+- `PresenceStore` pruneStaleViewers test had both d1 and d2 stale; d2 timestamp corrected to 4000 (fresh) to make the test meaningful
+- `VehicleDetailService` spec was refined so the second detail fixture used the correct `id: 'truck_2'` shape
+- An initial alert button that was disabled only during sending was rejected; `canSendAlert` computed was added to also gate on non-empty message
+- `vehicle-detail.spec.ts` was rejected for missing `render()` helper and `canSendAlert` tests; rewritten with `TestBed.flushEffects()` pattern
+- `dashboard.spec.ts` was similarly upgraded to use a `render()` helper replacing all `whenStable()` patterns
+
+**Validation:**
+- 334 tests passing across 34 test files
+- Production build successful — no errors, no warnings
+- `git diff -- mock-server/server.js` empty
+
+---
+
 ## Common Prompting Pattern
 
 Every implementation phase followed the same BMAD-style structure:
@@ -332,6 +438,8 @@ Before coding, propose:
 
 ## Final Notes
 
-The implementation was delivered in six incremental phases (P0–P5), each small enough to be fully reviewed before proceeding. Claude Code was used throughout — for planning, code generation, refactoring, and test writing — following a BMAD-inspired workflow that kept analysis, architecture, and implementation as distinct, sequential steps with a human approval gate between each.
+The implementation was delivered incrementally from P0 through P9/P10, with each phase reviewed before proceeding to the next. Claude Code was used throughout — for planning, code generation, refactoring, and test writing — following a BMAD-inspired workflow that kept analysis, architecture, and implementation as distinct, sequential steps with a human approval gate between each.
 
-Generated output was not accepted uncritically. Several outputs were rejected and corrected: an `SseClient` with an illegal cross-layer dependency, a pipeline that initialised as a constructor side-effect, a `livePatch` that would have written sensor-error values into the fleet store, and a popup built from raw HTML string interpolation. The final result through P5 delivers realtime SSE telemetry, sensor anomaly detection and suppression, a live fleet list, and a Leaflet map with live positions and historical trails — all without modifying the mock server.
+Generated output was not accepted uncritically. Several outputs were rejected and corrected: an `SseClient` with an illegal cross-layer dependency, a pipeline that initialised as a constructor side-effect, a `livePatch` that would have written sensor-error values into the fleet store, a popup built from raw HTML string interpolation, a stale WebSocket `selfId` reconnect bug, and unstable Angular specs that used `whenStable()` without a reliable render helper.
+
+The final result delivers realtime SSE telemetry, anomaly-safe fleet display, a Leaflet fleet map, route management, WebSocket dispatcher presence, collaborative truck viewing, a vehicle detail panel, and truck alert sending — all without modifying the mock server.
