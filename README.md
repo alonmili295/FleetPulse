@@ -153,7 +153,7 @@ The mock server does not need to be running for tests.
 
 ## Validation
 
-- **403 tests passing** across 37 test files
+- **408 tests passing** across 37 test files
 - **Production build succeeds** — existing size-budget warnings only
 - **`mock-server/server.js` unchanged** — verified via `git diff -- mock-server/server.js` (empty diff)
 

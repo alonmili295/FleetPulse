@@ -151,6 +151,6 @@ The guiding principle: the UI should show **trustworthy** data. A wrong-but-conf
 
 ## 12. Final Validation
 
-- **403 tests passing** across **37 test files**
+- **408 tests passing** across **37 test files**
 - **Production build succeeds** — existing size-budget warnings only
 - **`mock-server/server.js` unchanged** — verified via `git diff -- mock-server/server.js` (empty diff)
