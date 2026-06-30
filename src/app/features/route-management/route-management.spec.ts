@@ -186,7 +186,7 @@ describe('RouteManagementComponent', () => {
     expect(el.querySelector('.conflict-notice')?.textContent).toContain('other_dispatcher');
   });
 
-  it('reassign button calls routeService.reassignRoute()', async () => {
+  it('reassign(): directly calls routeService.reassignRoute (internal fast-path)', async () => {
     isLoaded.set(true);
     routeList.set([mockRoute]);
     const fixture = TestBed.createComponent(RouteManagementComponent);
@@ -195,5 +195,127 @@ describe('RouteManagementComponent', () => {
 
     fixture.componentInstance.reassign('route_1', 'truck_2');
     expect(routeServiceSpy.reassignRoute).toHaveBeenCalledWith('route_1', { newTruckId: 'truck_2' });
+  });
+
+  it('requestReassign() sets pendingAction and does NOT call the service', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestReassign('route_1', 'truck_2');
+
+    const pending = fixture.componentInstance.pendingAction();
+    expect(pending).toEqual({ kind: 'reassign', routeId: 'route_1', newTruckId: 'truck_2' });
+    expect(routeServiceSpy.reassignRoute).not.toHaveBeenCalled();
+  });
+
+  it('confirmPending() after requestReassign calls reassignRoute and clears pendingAction', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestReassign('route_1', 'truck_2');
+    fixture.componentInstance.confirmPending();
+
+    expect(routeServiceSpy.reassignRoute).toHaveBeenCalledWith('route_1', { newTruckId: 'truck_2' });
+    expect(fixture.componentInstance.pendingAction()).toBeNull();
+  });
+
+  it('cancelPending() after requestReassign does not call the service and clears pendingAction', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestReassign('route_1', 'truck_2');
+    fixture.componentInstance.cancelPending();
+
+    expect(routeServiceSpy.reassignRoute).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.pendingAction()).toBeNull();
+  });
+
+  it('requestStatus("completed") sets pendingAction and does NOT call the service', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestStatus('route_1', 'completed');
+
+    const pending = fixture.componentInstance.pendingAction();
+    expect(pending).toEqual({ kind: 'status', routeId: 'route_1', status: 'completed' });
+    expect(routeServiceSpy.updateRoute).not.toHaveBeenCalled();
+  });
+
+  it('requestStatus("cancelled") sets pendingAction and does NOT call the service', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestStatus('route_1', 'cancelled');
+
+    const pending = fixture.componentInstance.pendingAction();
+    expect(pending).toEqual({ kind: 'status', routeId: 'route_1', status: 'cancelled' });
+    expect(routeServiceSpy.updateRoute).not.toHaveBeenCalled();
+  });
+
+  it('confirmPending() after requestStatus calls updateRoute and clears pendingAction', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestStatus('route_1', 'completed');
+    fixture.componentInstance.confirmPending();
+
+    expect(routeServiceSpy.updateRoute).toHaveBeenCalledWith('route_1', { status: 'completed' });
+    expect(fixture.componentInstance.pendingAction()).toBeNull();
+  });
+
+  it('requestStatus("in-progress") calls updateRoute directly without setting pendingAction', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestStatus('route_1', 'in-progress');
+
+    expect(fixture.componentInstance.pendingAction()).toBeNull();
+    expect(routeServiceSpy.updateRoute).toHaveBeenCalledWith('route_1', { status: 'in-progress' });
+  });
+
+  it('requestStatus("assigned") calls updateRoute directly without setting pendingAction', async () => {
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+
+    fixture.componentInstance.requestStatus('route_1', 'assigned');
+
+    expect(fixture.componentInstance.pendingAction()).toBeNull();
+    expect(routeServiceSpy.updateRoute).toHaveBeenCalledWith('route_1', { status: 'assigned' });
+  });
+
+  it('shows confirm-bar and hides actions when pendingAction matches the route', async () => {
+    isLoaded.set(true);
+    routeList.set([mockRoute]);
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    fixture.componentInstance.requestReassign('route_1', 'truck_2');
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.confirm-bar')).not.toBeNull();
+    expect(el.querySelector('.route-item__actions')).toBeNull();
+  });
+
+  it('clicking Cancel in confirm-bar hides the bar and restores action controls', async () => {
+    isLoaded.set(true);
+    routeList.set([mockRoute]);
+    const fixture = TestBed.createComponent(RouteManagementComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    fixture.componentInstance.requestStatus('route_1', 'cancelled');
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('.confirm-bar__cancel-btn')
+      ?.click();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.confirm-bar')).toBeNull();
+    expect(el.querySelector('.route-item__actions')).not.toBeNull();
+    expect(routeServiceSpy.updateRoute).not.toHaveBeenCalled();
   });
 });
