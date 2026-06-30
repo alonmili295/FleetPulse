@@ -14,12 +14,15 @@ import { FleetStore } from '../../domain/fleet/fleet.store';
 import { ConnectionStore } from '../../domain/fleet/connection.store';
 import { TelemetryStore } from '../../domain/telemetry/telemetry.store';
 import { TelemetryPipeline } from '../../domain/telemetry/telemetry-pipeline';
+import { PresenceService } from '../../domain/presence/presence.service';
+import { PresenceStore } from '../../domain/presence/presence.store';
 import { RouteService } from '../../domain/routes/route.service';
 import { RoutesStore } from '../../domain/routes/routes.store';
 import { AuditLog } from '../../domain/routes/audit-log';
 import { of } from 'rxjs';
 import type { TruckListItem } from '../../shared/models/truck.model';
 import type { SseConnectionState } from '../../domain/fleet/connection.store';
+import type { WsState } from '../../shared/models/ws.model';
 
 const mockTruck: TruckListItem = {
   id: 'truck_1', name: 'Truck 1', status: 'active',
@@ -48,6 +51,18 @@ describe('DashboardComponent', () => {
         { provide: RouteService, useValue: { loadRoutes: vi.fn().mockReturnValue(of(undefined)), createRoute: vi.fn(), updateRoute: vi.fn(), reassignRoute: vi.fn() } },
         { provide: RoutesStore, useValue: { routeList: signal([]), isLoaded: signal(false), routeById: vi.fn(), versionFor: vi.fn(), setRoutes: vi.fn(), upsertRoute: vi.fn(), removeRoute: vi.fn() } },
         { provide: AuditLog, useValue: { entries: signal([]), append: vi.fn() } },
+        { provide: PresenceService, useValue: { connect: vi.fn(), close: vi.fn() } },
+        {
+          provide: PresenceStore,
+          useValue: {
+            selfId: signal<string | null>(null),
+            dispatchers: signal([]),
+            activeCount: signal(0),
+            wsState: signal<WsState>('disconnected'),
+            setSelf: vi.fn(), addDispatcher: vi.fn(), removeDispatcher: vi.fn(),
+            setActiveCount: vi.fn(), setWsState: vi.fn(), resetPresence: vi.fn(),
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -179,6 +194,18 @@ describe('DashboardComponent', () => {
     const pipelineMock = TestBed.inject(TelemetryPipeline) as unknown as { start: ReturnType<typeof vi.fn> };
     TestBed.createComponent(DashboardComponent);
     expect(pipelineMock.start).toHaveBeenCalled();
+  });
+
+  it('calls presenceService.connect() on construction', () => {
+    const presenceMock = TestBed.inject(PresenceService) as unknown as { connect: ReturnType<typeof vi.fn> };
+    TestBed.createComponent(DashboardComponent);
+    expect(presenceMock.connect).toHaveBeenCalled();
+  });
+
+  it('renders the presence indicator in the header', async () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.presence-indicator')).not.toBeNull();
   });
 
   it('renders the fleet map component', async () => {

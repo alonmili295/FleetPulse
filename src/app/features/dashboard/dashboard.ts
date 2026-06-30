@@ -4,6 +4,8 @@ import { FleetStore } from '../../domain/fleet/fleet.store';
 import { ConnectionStore } from '../../domain/fleet/connection.store';
 import { TelemetryStore } from '../../domain/telemetry/telemetry.store';
 import { TelemetryPipeline } from '../../domain/telemetry/telemetry-pipeline';
+import { PresenceService } from '../../domain/presence/presence.service';
+import { PresenceStore } from '../../domain/presence/presence.store';
 import { FleetMapComponent } from '../fleet-map/fleet-map';
 import { RouteManagementComponent } from '../route-management/route-management';
 
@@ -21,10 +23,13 @@ export class DashboardComponent {
   protected readonly fleetStore = inject(FleetStore);
   protected readonly connectionStore = inject(ConnectionStore);
   protected readonly telemetryStore = inject(TelemetryStore);
+  protected readonly presenceStore = inject(PresenceStore);
 
   private readonly pipeline = inject(TelemetryPipeline);
+  private readonly presenceService = inject(PresenceService);
 
   constructor() {
     this.pipeline.start();
+    this.presenceService.connect();
   }
 }
